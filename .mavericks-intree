@@ -1,0 +1,2 @@
+VERSION    # release.yml's ver step stamps the resolved version here; build/full-version.sh (updater.sh, package.sh) and updater-test.sh read and rewrite it
+dist/      # release.yml copies the pkg and build-info out of $NODE_WORK/dist here, and writes RELEASE_NOTES.md and node24.xml beside them: release-notes.sh --out resolves against the repo root

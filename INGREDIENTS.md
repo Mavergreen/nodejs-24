@@ -77,7 +77,18 @@ global package's own command still starts with npm's usual `#!/usr/bin/env node`
 Contexts without a login shell (launchd jobs, some IDEs) should use absolute paths, as for every family
 product.
 
+## Declared state
+
+What a release of this repo IS, for `release-state.sh` and the nightly `reconcile.yml`: a subset of the
+table above. Only a change to one of these values makes an already-published state unreleased. shipyard,
+the GitHub Actions, the Sparkle framework and the updater key are left out on purpose: those three
+move with every `@v1` or Actions bump and never change the `node` binary (a packaging fix they carry ships
+by a manual `local_release` dispatch), and a key change is a deliberate bridge release, not a state to
+reconcile.
+
+- upstream: UPSTREAM_VERSION
+- clang: components/toolchain/version:VERSION
+
 ## Conformance deviations
 
 - rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke, equivalence-fingerprint and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. Reconsider when these tests run on a Mavericks VM runner in CI (what vm-guest is building toward), and at the latest before macOS 28 removes Rosetta; until then, a native x86_64 host (the real 10.9 box) runs them without it.
-

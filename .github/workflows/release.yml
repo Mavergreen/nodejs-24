@@ -1,0 +1,194 @@
+name: release
+
+# spec: shipyard SKILL.md "Release workflow" -- auto-cut on main: a push to main whose upstream has no
+#       release yet cuts <upstream>-mavericks.1; a local_release dispatch (Renovate's toolchain bump via
+#       repackage-on-ingredient-bump.yml, or reconcile.yml's nightly backstop) cuts -mavericks.(N+1);
+#       everything else builds, tests and checks conformance without publishing.
+# spec: shipyard SKILL.md "New-project checklist" item 11 -- no tags: trigger; dispatch covers every
+#       case a pushed tag served.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      local_release:
+        description: "Cut a -mavericks.(N+1) repackage of the current upstream"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# spec: shipyard SKILL.md "Release workflow" -- a run that can publish is alone in its group and is
+#       cancelled by nothing; only a pull_request supersedes its own predecessor.
+concurrency:
+  group: >-
+    release-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    # platform: the cross leg -- arm64 host tools, x86_64/10.9 target, no Rosetta in the build
+    #           (INGREDIENTS.md "Build and packaging"); the one pkg this repo ships comes from here.
+    runs-on: macos-26
+    timeout-minutes: 355
+    outputs:
+      version: ${{ steps.ver.outputs.full }}
+      publish: ${{ steps.ver.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0, persist-credentials: false }
+
+      - uses: Mavergreen/shipyard/.github/actions/install@v1
+
+      # spec: build/paths.sh -- NODE_WORK (source, objects, updater, stage, pkg) derives from this.
+      - name: Build out of tree
+        run: echo "MAVERICKS_BUILD_ROOT=$RUNNER_TEMP/mm-build" >> "$GITHUB_ENV"
+
+      - name: Record the pre-build tree
+        run: sh "$SHIPYARD_SCRIPTS/assert-tree-clean.sh" --record
+
+      # spec: shipyard SKILL.md "Release workflow" -- the ver step; off main nothing publishes.
+      - name: Resolve version (never publish off main)
+        id: ver
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          LOCAL_RELEASE: ${{ inputs.local_release }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mode="$(sh "$SHIPYARD_SCRIPTS/release-mode.sh")"
+          out="$(sh build/version.sh "$mode")"
+          full="$(printf '%s\n' "$out" | sed -n 's/^FULL=//p')"
+          rel="$(printf '%s\n' "$out" | sed -n 's/^RELEASE=//p')"
+          [ -n "$full" ] || { echo "::error::version.sh gave no FULL= line: $out"; exit 1; }
+          [ "$GITHUB_REF_NAME" = main ] || rel=no
+          # spec: shipyard SKILL.md "Publishing a release" -- publish-release.yml refuses a first release
+          #       whose README still carries the not-yet-read marker; check it here, before hours of
+          #       building and signing, rather than only at publish time.
+          if [ "$rel" = yes ]; then
+            prior="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=1" --jq 'length')"
+            [ "$prior" != 0 ] || sh "$SHIPYARD_SCRIPTS/check-readme-reviewed.sh" README.md
+          fi
+          printf '%s\n' "$full" > VERSION
+          id="$(sh build/package.sh identity)"
+          {
+            echo "full=$full"
+            echo "release=$rel"
+            echo "line=$(printf '%s\n' "$id" | sed -n 's/^line=//p')"
+            echo "product=$(printf '%s\n' "$id" | sed -n 's/^product=//p')"
+            echo "title=$(printf '%s\n' "$id" | sed -n 's/^title=//p')"
+          } >> "$GITHUB_OUTPUT"
+          echo "version=$full publish=$rel"
+
+      - name: Ingredient pins are well declared
+        run: sh "$SHIPYARD_SCRIPTS/check-ingredient-pins.sh"
+
+      - name: Build node (fetch, patch, configure, make, compat guard)
+        run: sh build/build.sh all
+
+      # spec: INGREDIENTS.md "Build and packaging" -- after the build, so smoke, equivalence-fingerprint
+      #       and startup-snapshot run the built x86_64 node (under Rosetta while macos-26 has it, as
+      #       declared in rosetta:tests/lib/x86_64.sh; SKIP 77 without) instead of skipping as unbuilt.
+      - name: Tests
+        run: sh "$SHIPYARD_SCRIPTS/run-repo-tests.sh"
+
+      # spec: tests/updater-test.sh -- it rebuilds the updater at -mavericks.N+1 in the same build dir,
+      #       and package.sh refuses an updater that is not this build's version, so this comes after.
+      - name: Build the Sparkle updater
+        run: sh build/updater.sh
+
+      - name: Package
+        env:
+          FULL: ${{ steps.ver.outputs.full }}
+        run: |
+          set -eu
+          out="$(sh build/package.sh pkg)"
+          pkg="$(printf '%s\n' "$out" | tail -1)"
+          [ "${pkg##*/}" = "nodejs-$FULL.pkg" ] || { echo "::error::package.sh made $pkg, not nodejs-$FULL.pkg"; exit 1; }
+          mkdir -p dist
+          cp "$pkg" "${pkg%/*}"/build-info-*.txt dist/
+          ls -l dist
+
+      - name: Release notes
+        env:
+          FULL: ${{ steps.ver.outputs.full }}
+          LINE: ${{ steps.ver.outputs.line }}
+        run: |
+          set -eu
+          sh "$SHIPYARD_SCRIPTS/release-notes.sh" --tag "$FULL" --version "$FULL" \
+            --product "Node.js" --min-os 10.9.5 --line "$LINE" --out dist/RELEASE_NOTES.md
+
+      # spec: shipyard SKILL.md "A release is a declared state, not an event" -- before signing, so the
+      #       appcast <description> and the Release body carry the same marker.
+      - name: Record the declared state in the notes
+        run: |
+          set -eu
+          digest="$(sh "$SHIPYARD_SCRIPTS/release-state.sh")"
+          sh "$SHIPYARD_SCRIPTS/release-state-record.sh" --notes-file dist/RELEASE_NOTES.md --digest "$digest"
+
+      - name: Sign the pkg and write its feed
+        if: steps.ver.outputs.publish == 'yes'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          FULL: ${{ steps.ver.outputs.full }}
+          PRODUCT: ${{ steps.ver.outputs.product }}
+          TITLE: ${{ steps.ver.outputs.title }}
+        run: |
+          set -eu
+          printenv SPARKLE_PRIVATE_KEY | grep -q . || { echo "::error::SPARKLE_PRIVATE_KEY is not visible to this repo"; exit 1; }
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/$FULL"
+          sh "$SHIPYARD_SCRIPTS/sign_and_appcast.sh" --product "$PRODUCT" --feed-dir dist \
+            --channel-title "$TITLE" --version "$FULL" --pkg-url "$base/nodejs-$FULL.pkg" \
+            --notes-file dist/RELEASE_NOTES.md --pkg "dist/nodejs-$FULL.pkg" --min-os 10.9.5
+
+      - name: Unsigned stand-in feed (never published)
+        if: steps.ver.outputs.publish != 'yes'
+        run: sh "$SHIPYARD_SCRIPTS/stand-in-feeds.sh" dist "${{ steps.ver.outputs.full }}"
+
+      # spec: shipyard SKILL.md "Artifact conformance" -- capture and check, never pipe a producer
+      #       whose failure would only shorten the stream.
+      - name: Artifact conformance
+        run: |
+          set -eu
+          facts="$(sh "$SHIPYARD_SCRIPTS/artifact-facts.sh" dist "${{ steps.ver.outputs.full }}")"
+          [ -n "$facts" ] || { echo "::error::artifact-facts.sh printed nothing"; exit 1; }
+          printf '%s\n' "$facts" | sh "$SHIPYARD_SCRIPTS/check-artifact-conformance.sh"
+
+      - name: The feed is an upgrade on this line
+        if: steps.ver.outputs.publish == 'yes'
+        run: |
+          sh "$SHIPYARD_SCRIPTS/assert_appcast_upgradeable.sh" \
+            --appcast "dist/${{ steps.ver.outputs.product }}.xml" --version "${{ steps.ver.outputs.full }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mavergreen-nodejs
+          path: |
+            dist/*.pkg
+            dist/build-info-*.txt
+            dist/RELEASE_NOTES.md
+            dist/*.xml
+
+      - name: The build must not have written into the source tree
+        run: sh "$SHIPYARD_SCRIPTS/assert-tree-clean.sh"
+
+  # spec: shipyard scan-for-key.yml header -- a run that failed after signing left public logs too.
+  scan:
+    needs: [build]
+    if: always() && needs.build.outputs.publish == 'yes'
+    permissions: { actions: read, contents: read }
+    uses: Mavergreen/shipyard/.github/workflows/scan-for-key.yml@v1
+    with: { artifact: mavergreen-nodejs }
+    secrets: { SPARKLE_PRIVATE_KEY: "${{ secrets.SPARKLE_PRIVATE_KEY }}" }
+
+  publish:
+    needs: [build, scan]
+    if: needs.build.outputs.publish == 'yes'
+    permissions: { contents: write }
+    uses: Mavergreen/shipyard/.github/workflows/publish-release.yml@v1
+    with: { version: "${{ needs.build.outputs.version }}", artifact: mavergreen-nodejs }

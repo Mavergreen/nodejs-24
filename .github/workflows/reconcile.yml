@@ -1,0 +1,22 @@
+name: reconcile
+
+# spec: shipyard SKILL.md "A release is a declared state, not an event" -- the nightly backstop:
+#       dispatches release.yml (local_release=true) when no release carries INGREDIENTS.md's
+#       declared state. Upstream is UPSTREAM_VERSION, so no upstream-file input.
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+# spec: shipyard SKILL.md "New-project checklist" item 11 -- a called workflow gets no more than its
+#       caller grants, so the backstop needs these here or it fails as silently as a lost release
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  reconcile:
+    permissions:
+      contents: read
+      actions: write
+    uses: Mavergreen/shipyard/.github/workflows/reconcile.yml@v1
