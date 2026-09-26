@@ -1,0 +1,5 @@
+The node24 updater ships the standard macOS application icon on purpose (configured with
+-DMAVERICKS_ALLOW_GENERIC_ICON=ON). The Node.js logo is a trademark of the OpenJS Foundation, and this is
+an unofficial community build, so it does not borrow upstream's artwork -- the same choice as the clang
+(no LLVM dragon) and openssh (no Puffy) updaters. Replace this with original, non-logo artwork by
+passing ICON <file.icns> in CMakeLists.txt and dropping the generic-icon opt-in.

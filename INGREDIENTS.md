@@ -10,6 +10,8 @@ A Node *major* is a product; this repo ships exactly ONE major, derived from the
 | Toolchain | `components/toolchain/version` (`VERSION`) | ✅ `github-releases` on `Mavergreen/clang`, SHA256SUMS-verified | fetch+verify this host's variant of the pinned `.pkg`, rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
 | shipyard | `.github/workflows/*.yml` `uses: …@v1` | ✅ built-in github-actions manager | pulls new shared scripts/gate; does not change the node binary |
 | GitHub Actions | `.github/workflows/*.yml` `uses:` | ✅ built-in github-actions manager | CI-only; does not change the node binary |
+| Sparkle framework (updater) | shipyard's `MavericksSparkle` (fetched at configure time) | ✅ moves when shipyard's `v1` moves (CI installs `@v1`; a local build uses the installed shipyard pkg) | picked up by the next `build/updater.sh`; does not change the node binary |
+| Updater signing key | `updater/ed25519_key.pub` (the family's single org key) | ❌ **untrackable**: a trust anchor, deliberately not auto-updated; changing it needs a bridge release | — |
 
 Node's bundled dependencies (V8, libuv, ICU, npm, nghttp2, …) ride inside the Node tarball and are
 **not** independent pins — they move only when the root `UPSTREAM_VERSION` moves.
