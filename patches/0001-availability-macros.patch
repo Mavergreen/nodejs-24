@@ -1,0 +1,35 @@
+--- a/deps/v8/src/base/platform/platform-posix.cc
++++ b/deps/v8/src/base/platform/platform-posix.cc
+@@ -10,6 +10,9 @@
+ #include <limits.h>
+ #include <pthread.h>
+ 
++#ifdef __APPLE__
++#include <AvailabilityMacros.h>
++#endif
+ #include "src/base/logging.h"
+ #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+ #include <pthread_np.h>  // for pthread_set_name_np
+--- a/deps/uv/src/unix/darwin.c
++++ b/deps/uv/src/unix/darwin.c
+@@ -20,6 +20,7 @@
+ 
+ #include "uv.h"
+ #include "internal.h"
++#include <AvailabilityMacros.h>
+ 
+ #include <dlfcn.h>
+ #include <mach/mach.h>
+--- a/deps/uv/src/unix/fs.c
++++ b/deps/uv/src/unix/fs.c
+@@ -71,6 +71,10 @@
+ # include <sys/statfs.h>
+ #endif
+ 
++#if defined(__APPLE__)
++#include <AvailabilityMacros.h>
++#endif
++
+ #if defined(_AIX) && _XOPEN_SOURCE <= 600
+ extern char *mkdtemp(char *template);
+ #endif

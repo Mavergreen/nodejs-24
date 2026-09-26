@@ -1,0 +1,22 @@
+--- a/deps/v8/src/libplatform/tracing/recorder.h
++++ b/deps/v8/src/libplatform/tracing/recorder.h
+@@ -10,7 +10,7 @@
+ #include "include/libplatform/v8-tracing.h"
+ 
+ #if V8_OS_DARWIN
+-#include <os/signpost.h>
++// #include <os/signpost.h> // Not available on macOS 10.9
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wunguarded-availability"
+ #endif
+--- a/tools/v8_gypfiles/features.gypi
++++ b/tools/v8_gypfiles/features.gypi
+@@ -65,7 +65,7 @@
+     
+       ['OS == "win" or OS == "mac"', {
+         # Sets -DENABLE_SYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+-        'v8_enable_system_instrumentation': 1,
++        'v8_enable_system_instrumentation': 0,
+       }, {
+         'v8_enable_system_instrumentation': 0,
+       }],
