@@ -1,0 +1,18 @@
+# Toolchain provider for the Node build (the toolchain seam's input).
+# PROVIDER=mavericks-clang : Mavergreen clang/LLVM. Consumed as a .pkg from Mavergreen/clang.
+#   Its clang.cfg/clang++.cfg auto-wire the 10.9 target, the sysroot (SDKs/MacOSX10.9.sdk), static
+#   libc++/libc++abi/libunwind, macports-legacy-support and the Apple frameworks -- all through <CFGDIR>
+#   relative paths, so the toolchain works wherever it is unpacked, not only at its install prefix.
+#   Two variants that never coexist on one machine: NATIVE runs on 10.9, CROSS runs on a modern host.
+#   Both target x86_64-apple-macos10.9. build/fetch-toolchain.sh picks the variant from the build MODE.
+# PROVIDER=macports : fallback — /opt/local clang-18 + llvm-18 libc++ + MacPorts legacy-support (untracked).
+#
+# VERSION is the only line Renovate moves (github-releases on Mavergreen/clang). The per-variant
+# checksums deliberately do NOT live here: build/fetch-toolchain.sh reads the pinned release's own
+# SHA256SUMS and fails if the asset is not listed. That keeps a bump to a single line, so it can ride
+# the green gate unattended -- the family's "consuming a Mavergreen toolchain" convention.
+PROVIDER=mavericks-clang
+VERSION=22.1.1-mavericks.1
+PREFIX_NATIVE=/usr/local/mavericks-clang-22
+PREFIX_CROSS=/usr/local/mavericks-clang-22-cross
+RELEASE_BASE=https://github.com/Mavergreen/clang/releases/download

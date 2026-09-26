@@ -17,6 +17,20 @@
       "packageNameTemplate": "nodejs/node",
       "datasourceTemplate": "github-tags",
       "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the mavericks-clang toolchain every Node binary is compiled with. VERSION is the entire pin -- build/fetch-toolchain.sh reads the per-variant checksums from that release's own SHA256SUMS -- so this one-line bump is self-consistent and can ride the green gate. Uncapped on purpose: this is not a Node line, and a new LLVM major is a toolchain the product should follow.",
+      "managerFilePatterns": [
+        "/^components/toolchain/version$/"
+      ],
+      "matchStrings": [
+        "\\nVERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "depNameTemplate": "mavericks-clang",
+      "packageNameTemplate": "Mavergreen/clang",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-mavericks\\.(?<build>\\d+)$"
     }
   ],
   "packageRules": [

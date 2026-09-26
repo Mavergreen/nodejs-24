@@ -1,0 +1,28 @@
+name: repackage-on-ingredient-bump
+
+# When Renovate bumps the mavericks-clang pin, the Node binaries change even though Node itself did
+# not — so every line needs re-cutting as -mavericks.(N+1). This dispatches release.yml's
+# workflow_dispatch local_release path via the shared reusable workflow (a dispatch, not a pushed tag:
+# a GITHUB_TOKEN-pushed tag cannot trigger release.yml).
+#
+# UPSTREAM_VERSION is excluded as own-upstream: a new Node version is this line's OWN upstream, which
+# release.yml already cuts as N=1 on push-to-main. Only the toolchain is an ingredient here.
+#
+# This file is also the SOURCE OF TRUTH for "what are this repo's ingredients": ingredient-pins.sh
+# derives that list from these paths minus own-upstream-paths, so the repackage trigger and the release
+# notes cannot drift apart, and check-ingredient-pins.sh fails the build if a path here matches nothing
+# tracked.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - components/toolchain/version    # the mavericks-clang pin (VERSION)
+
+jobs:
+  repackage:
+    permissions:
+      actions: write
+    uses: Mavergreen/shipyard/.github/workflows/repackage-on-ingredient-bump.yml@v1
+    with:
+      own-upstream-paths: UPSTREAM_VERSION
