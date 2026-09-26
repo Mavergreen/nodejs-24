@@ -22,9 +22,12 @@ picks its variant from the build MODE. A cross build additionally needs Node's `
 --dest-os=mac --cross-compiling`. gyp then builds the tools that run during the build (torque,
 mksnapshot, node_js2c, the ICU generators) in a separate host toolset, as native arm64 with Apple's
 clang (`CC_host`/`CXX_host` from `build.sh host-env`) against the build machine's SDK. **No step of
-either build runs under Rosetta.** On an arm64 Mac without Rosetta, the cross build
-completes, and its V8 `snapshot.cc` and `embedded.S` are byte-identical to the native 10.9 build's.
-`tests/rosetta-free-test.sh` fails if the build ever uses Rosetta.
+either build runs under Rosetta.** On an arm64 Mac without Rosetta, the cross build completes, its V8
+`snapshot.cc` and `embedded.S` are byte-identical to the native 10.9 build's, and its `node` matches the
+committed native equivalence fingerprint on 10.9. The tests that execute the x86_64 `node` (smoke,
+equivalence-fingerprint, startup-snapshot) run it natively on an x86_64 host such as the real 10.9 box,
+under Rosetta where an Apple-Silicon host has it (declared below), and SKIP elsewhere.
+`tests/rosetta-free-test.sh` fails if the build ever uses Rosetta, or a test uses it undeclared.
 
 Both builds configure `--without-node-snapshot`. Node's startup snapshot is made by running Node's
 bootstrap as target-arch code, and V8 has no x64 simulator, so an arm64 host could only make it under
@@ -33,4 +36,5 @@ the two builds would differ.
 
 ## Conformance deviations
 
-None.
+- rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke, equivalence-fingerprint and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. Reconsider when these tests run on a Mavericks VM runner in CI (what vm-guest is building toward), and at the latest before macOS 28 removes Rosetta; until then, a native x86_64 host (the real 10.9 box) runs them without it.
+
