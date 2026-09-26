@@ -32,7 +32,13 @@ under Rosetta where an Apple-Silicon host has it (declared below), and SKIP else
 Both builds configure `--without-node-snapshot`. Node's startup snapshot is made by running Node's
 bootstrap as target-arch code, and V8 has no x64 simulator, so an arm64 host could only make it under
 Rosetta. Node's configure already drops it when cross-compiling, so the native build drops it too, or
-the two builds would differ.
+the two builds would differ. The snapshot is generated on the target instead. The pkg ships
+`libexec/mavergreen/build-startup-snapshot`, and its postinstall runs it: best-effort, and only when
+installing to the boot volume. It writes `lib/node/startup.blob` with `node --build-snapshot`, and
+checks the blob starts node before putting it in place. `patches/0003-default-startup-snapshot.patch`
+makes node load that blob wherever the embedded snapshot would have loaded, and start without it if the
+blob is missing or rejected. On 10.9 hardware, `node -e 0` takes about 43 ms with the blob and about 86 ms
+without. A Mac that cannot run the x86_64 node (Apple Silicon without Rosetta) simply has no blob.
 
 ## Conformance deviations
 

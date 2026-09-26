@@ -1,0 +1,50 @@
+--- a/src/node.cc
++++ b/src/node.cc
+@@ -1435,6 +1435,37 @@
+     exit_code = ExitCode::kStartupSnapshotFailure;
+   }
+   return exit_code;
++}
++
++// Mavergreen: a build configured --without-node-snapshot has no embedded
++// startup snapshot, so the product's postinstall generates one on the target
++// with `node --build-snapshot` into <prefix>/lib/node/startup.blob. Load it
++// wherever the embedded snapshot would have been loaded. Any problem -- no
++// file, wrong magic, built by another Node version, arch or platform -- means
++// "start without a snapshot", never a failed start: an explicit
++// --snapshot-blob aborts on a bad magic, which is right for a blob the user
++// named and wrong for one the user never asked for.
++static const SnapshotData* LoadDefaultStartupSnapshot() {
++  char exe[PATH_MAX];
++  size_t exe_size = sizeof(exe);
++  if (uv_exepath(exe, &exe_size) != 0) return nullptr;
++  char real[PATH_MAX];
++  if (realpath(exe, real) == nullptr) return nullptr;
++  std::string path(real);
++  size_t slash = path.rfind('/');
++  if (slash == std::string::npos) return nullptr;
++  path = path.substr(0, slash) + "/../lib/node/startup.blob";
++  FILE* fp = fopen(path.c_str(), "rb");
++  if (fp == nullptr) return nullptr;
++  std::vector<char> blob = ReadFileSync(fp);
++  fclose(fp);
++  uint32_t magic;
++  if (blob.size() < sizeof(magic)) return nullptr;
++  memcpy(&magic, blob.data(), sizeof(magic));
++  if (magic != SnapshotData::kMagic) return nullptr;
++  std::unique_ptr<SnapshotData> data = std::make_unique<SnapshotData>();
++  if (!SnapshotData::FromBlob(data.get(), blob)) return nullptr;
++  return data.release();
+ }
+ 
+ bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
+@@ -1486,6 +1517,9 @@
+     // --no-node-snapshot is specified.
+     const node::SnapshotData* read_data =
+         SnapshotBuilder::GetEmbeddedSnapshotData();
++    if (read_data == nullptr) {
++      read_data = LoadDefaultStartupSnapshot();
++    }
+     if (read_data != nullptr) {
+       if (!read_data->Check()) {
+         return false;
