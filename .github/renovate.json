@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>Mavergreen/shipyard"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track Node for the 24 line. This repo ships ONE Node major -- the line derived from the root UPSTREAM_VERSION (see build/version.sh) -- and the cap below keeps it on 24.x: Node 26 arrives as a new repo, not by moving this manager or raising the cap.",
+      "managerFilePatterns": [
+        "/^UPSTREAM_VERSION$/"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>.+?)\\s*$"
+      ],
+      "depNameTemplate": "node-24",
+      "packageNameTemplate": "nodejs/node",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "The 24 line stays on 24.x. Not an automerge exception -- automerge is the family default (ship-if-green) and still applies; this only stops Renovate from walking the line onto a Node major it was never built for.",
+      "matchDepNames": [
+        "node-24"
+      ],
+      "allowedVersions": "<25"
+    }
+  ]
+}

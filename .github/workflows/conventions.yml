@@ -1,0 +1,11 @@
+name: conventions
+# The family conventions gate (concurrency declared, tests actually run, INGREDIENTS.md present, no
+# restated preset keys, VERSION not committed, per-line capped Renovate managers, workflows parse).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  conventions:
+    uses: Mavergreen/shipyard/.github/workflows/family-conventions.yml@v1

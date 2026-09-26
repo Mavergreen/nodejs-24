@@ -1,0 +1,17 @@
+# Non-code notes (specs/plans/briefs): tracked out-of-band, replaced by code+tests, disposable.
+docs/
+
+# Full package version (<upstream>-mavericks.N): a build product, workflow/build/version.sh-written.
+/VERSION
+/dist/
+
+# Build outputs / fetched inputs
+*.pkg
+*.tar.gz
+*.a
+node-v*/
+out/
+
+# macOS cruft
+.DS_Store
+._*
