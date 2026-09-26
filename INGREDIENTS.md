@@ -42,6 +42,41 @@ makes node load that blob wherever the embedded snapshot would have loaded, and 
 blob is missing or rejected. On 10.9 hardware, `node -e 0` takes about 43 ms with the blob and about 86 ms
 without. A Mac that cannot run the x86_64 node (Apple Silicon without Rosetta) simply has no blob.
 
+`sh build/package.sh pkg` makes one floored product archive, `nodejs-<version>.pkg`:
+- `dev.mavergreen.base` comes first, then one component, `dev.mavergreen.nodejs.node24`;
+- that component carries node, npm, npx, corepack, headers and manpages in `/usr/local/mavergreen/node24`,
+  plus the manifest (short name `node24`, group `node`, line `24`);
+- the helper links `node-24`, `npm-24`, … and, for the group's selected member, the bare names;
+- the install floor is 10.9.5.
+
+The pkg also installs `node24-updater.app` in `/Library/Application Support/Mavergreen/`, with a daily
+LaunchAgent, `dev.mavergreen.nodejs.node24-updatecheck`. Shipyard's `mavericks_add_updater_app` builds it
+from the updater-only `CMakeLists.txt` (`sh build/updater.sh`). Its bundle id and feed
+(`…/Mavergreen/nodejs-24/releases/latest/download/node24.xml`) come from shipyard's product registry. It
+trusts the family's org Ed25519 key, and it ships the generic app icon on purpose
+(`updater/ICON-CREDIT.txt`).
+
+It is a single component rather than upstream's node/npm split, because `set_install_floor.sh` wraps one
+component and the product tree already holds node and npm together.
+
+npm, npx and corepack are small wrappers, not upstream's `#!/usr/bin/env node` symlinks
+(`build/npm-wrapper.sh`). They exec node24's own `node` with node24's `bin` first on PATH, so npm scripts,
+npx tools and node-gyp use the same Node. After a global operation run as root (`sudo npm-24 install -g …`,
+or `sudo corepack-24 enable`, whose shims default to node24's own `bin`), they relink node24, so new
+commands appear in the link farm (`<cmd>-24`, and `<cmd>` while node24 is selected) and removed ones
+disappear. If another product already owns a command's name, the relink is refused and says so, and
+node24 stays linked as before. npm and corepack themselves update with this pkg:
+`npm-24 install -g npm` is refused, and npm's update notifier is off. `sudo` is needed as for any
+system-wide Node.
+
+Global packages survive upgrades. The pkg's preinstall hook stashes them (every `lib/node_modules`
+entry except npm and corepack, plus their `bin/` links) in `/usr/local/mavergreen/var/node24`, and the
+postinstall puts them back and relinks (`build/hooks.sh`). Uninstall removes them with the product. A
+global package's own command still starts with npm's usual `#!/usr/bin/env node`, so it runs the first
+`node` on PATH: the selected line in a login shell, where `/etc/paths.d` puts the link farm on PATH.
+Contexts without a login shell (launchd jobs, some IDEs) should use absolute paths, as for every family
+product.
+
 ## Conformance deviations
 
 - rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke, equivalence-fingerprint and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. Reconsider when these tests run on a Mavericks VM runner in CI (what vm-guest is building toward), and at the latest before macOS 28 removes Rosetta; until then, a native x86_64 host (the real 10.9 box) runs them without it.
