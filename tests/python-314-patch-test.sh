@@ -32,6 +32,7 @@ except ImportError:
 
 print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
 acceptable_pythons = ((3, 13), (3, 12), (3, 11), (3, 10), (3, 9))
+if sys.version_info[:2] in acceptable_pythons:
 CONFIGURE
 . "$root/build/python-314-compat.sh"
 apply_python_314_compat_patch "$tmp" "$root/patches/0004-python-314.patch"
