@@ -14,6 +14,7 @@ SELF="$(cd "$(dirname "$0")" && pwd)"
 MAVERICKS_ROOT="$(cd "$SELF/.." && pwd)"; export MAVERICKS_ROOT
 . "$SELF/msc.sh"                                   # sets $SHIPYARD
 . "$SELF/paths.sh"
+. "$SELF/python-314-compat.sh"
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 # Node's gyp invokes `libtool -static` / `ar` / `ranlib` by BARE NAME to build static archives. Two
@@ -77,7 +78,12 @@ apply_patches() {
   [ -d "$SRC" ] || { echo "build.sh: no extracted source at $SRC (run fetch first)" >&2; exit 1; }
   for p in "$MAVERICKS_ROOT/patches"/*.patch; do
     [ -e "$p" ] || continue
-    echo "  applying $(basename "$p")"; ( cd "$SRC" && patch -p1 < "$p" )
+    echo "  applying $(basename "$p")"
+    if [ "$(basename "$p")" = 0004-python-314.patch ]; then
+      apply_python_314_compat_patch "$SRC" "$p"
+    else
+      ( cd "$SRC" && patch -p1 < "$p" )
+    fi
   done
   fixups
 }

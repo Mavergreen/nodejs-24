@@ -17,4 +17,6 @@ SRC="$NODE_WORK/node-v$V"
 # Assert the fixups actually changed the sources (guards against a silent no-op on a new Node layout).
 grep -q "void\* qos_override" "$SRC/deps/v8/src/heap/safepoint.h" || { echo "FAIL: safepoint.h fixup missing"; exit 1; }
 grep -q "'10.9'" "$SRC/common.gypi" || { echo "FAIL: common.gypi target fixup missing"; exit 1; }
+grep -q '^command -v python3\.14 .*exec python3\.14 ' "$SRC/configure" || { echo "FAIL: configure Python 3.14 selection missing"; exit 1; }
+grep -q '^acceptable_pythons = ((3, 14), (3, 13),' "$SRC/configure" || { echo "FAIL: configure Python 3.14 support missing"; exit 1; }
 echo "PASS: patch-apply"

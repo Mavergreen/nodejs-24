@@ -6,6 +6,8 @@ Applied by `build/build.sh` with `patch -p1` (Apple patch 2.0-safe; no --merge) 
 - 0003-default-startup-snapshot.patch: with no embedded startup snapshot (we build --without-node-snapshot),
   load `<prefix>/lib/node/startup.blob` -- generated on the target at install time -- and start without it
   on any problem instead of failing.
+- 0004-python-314.patch: backport Node's Python 3.14 configure support to the pinned 24.6 source by
+  preferring `python3.14` and accepting `(3, 14)`.
 
 Deterministic source edits awkward as context patches (common.gypi deployment target, V8 safepoint
 pthread_override removal) live as a `fixups` step in build/build.sh, not here.

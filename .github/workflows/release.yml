@@ -44,6 +44,11 @@ jobs:
 
       - uses: Mavergreen/shipyard/.github/actions/install@v1
 
+      # Node 24.6's configure accepts Python through 3.14; don't inherit a newer runner default.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
       # spec: build/paths.sh -- NODE_WORK (source, objects, updater, stage, pkg) derives from this.
       - name: Build out of tree
         run: echo "MAVERICKS_BUILD_ROOT=$RUNNER_TEMP/mm-build" >> "$GITHUB_ENV"
