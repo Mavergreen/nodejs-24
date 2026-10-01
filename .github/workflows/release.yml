@@ -136,7 +136,7 @@ jobs:
           sh "$SHIPYARD_SCRIPTS/release-state-record.sh" --notes-file dist/RELEASE_NOTES.md --digest "$digest"
 
       - name: Sign the pkg and write its feed
-        if: steps.ver.outputs.publish == 'yes'
+        if: steps.ver.outputs.release == 'yes'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           GH_TOKEN: ${{ github.token }}
@@ -152,7 +152,7 @@ jobs:
             --notes-file dist/RELEASE_NOTES.md --pkg "dist/nodejs-$FULL.pkg" --min-os 10.9.5
 
       - name: Unsigned stand-in feed (never published)
-        if: steps.ver.outputs.publish != 'yes'
+        if: steps.ver.outputs.release != 'yes'
         run: sh "$SHIPYARD_SCRIPTS/stand-in-feeds.sh" dist "${{ steps.ver.outputs.full }}"
 
       # spec: shipyard SKILL.md "Artifact conformance" -- capture and check, never pipe a producer
@@ -165,7 +165,7 @@ jobs:
           printf '%s\n' "$facts" | sh "$SHIPYARD_SCRIPTS/check-artifact-conformance.sh"
 
       - name: The feed is an upgrade on this line
-        if: steps.ver.outputs.publish == 'yes'
+        if: steps.ver.outputs.release == 'yes'
         run: |
           sh "$SHIPYARD_SCRIPTS/assert_appcast_upgradeable.sh" \
             --appcast "dist/${{ steps.ver.outputs.product }}.xml" --version "${{ steps.ver.outputs.full }}"
