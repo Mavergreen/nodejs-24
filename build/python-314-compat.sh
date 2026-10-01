@@ -1,5 +1,5 @@
 #!/bin/sh
-# Backport Node's Python 3.14 configure support to the pinned Node 24.6 source.
+# Backport Node's Python 3.14 configure support when the pinned Node source lacks it.
 apply_python_314_compat_patch() {
   python_314_src=$1
   python_314_patch=$2
