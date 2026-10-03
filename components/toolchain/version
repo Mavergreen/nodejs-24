@@ -12,7 +12,7 @@
 # SHA256SUMS and fails if the asset is not listed. That keeps a bump to a single line, so it can ride
 # the green gate unattended -- the family's "consuming a Mavergreen toolchain" convention.
 PROVIDER=mavericks-clang
-VERSION=22.1.1-mavericks.1
+VERSION=22.1.1-mavericks.6
 PREFIX_NATIVE=/usr/local/mavericks-clang-22
 PREFIX_CROSS=/usr/local/mavericks-clang-22-cross
 RELEASE_BASE=https://github.com/Mavergreen/clang/releases/download
