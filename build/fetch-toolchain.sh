@@ -11,7 +11,7 @@
 # through <CFGDIR>-relative paths, so an unpacked payload is a fully working toolchain at any path. We
 # unpack rather than `installer`, because a build must not require root.
 #
-# NOTE ON $SHIPYARD/mavericks_fetch.sh: mav_fetch_pinned is the family's fetch+verify helper, but it ends in
+# NOTE ON $SHIPYARD/mavericks_fetch.sh: shipyard_fetch_pinned is the family's fetch+verify helper, but it ends in
 # `tar xf`, and a .pkg is a xar archive -- so it cannot unpack this artifact. The download/verify
 # contract below is deliberately identical to it (curl --fail, delete a partial download, checksum
 # BEFORE unpacking, never unpack on mismatch), just with pkgutil doing the extraction.
@@ -29,6 +29,7 @@ if [ -n "${MAVERICKS_TOOLCHAIN_PREFIX:-}" ]; then
 fi
 
 . "$SELF/msc.sh"                                   # sets $SHIPYARD
+. "$SHIPYARD/mavericks_fetch.sh"
 MODE="${MODE:-$(sh "$SHIPYARD/mavericks_mode.sh")}"     # native on 10.9, else cross
 
 VERSION="$(_pin VERSION)"
@@ -70,7 +71,7 @@ if [ ! -x "$DEST/bin/clang" ]; then
   # Mavergreen toolchain" convention: VERSION is then the ONE thing to bump, so Renovate can
   # move this pin through the green gate without a human transcribing hashes.
   SUMS="$CACHE/SHA256SUMS-$VERSION"
-  [ -f "$SUMS" ] || curl -sL --fail -o "$SUMS" "$RELEASE_BASE/$VERSION/SHA256SUMS" || { rm -f "$SUMS"; echo "fetch-toolchain.sh: cannot fetch SHA256SUMS for $VERSION" >&2; exit 1; }
+  [ -f "$SUMS" ] || shipyard_curl "$RELEASE_BASE/$VERSION/SHA256SUMS" "$SUMS" || { rm -f "$SUMS"; echo "fetch-toolchain.sh: cannot fetch SHA256SUMS for $VERSION" >&2; exit 1; }
   # Find the variant's .pkg BY ITS SUFFIX rather than reconstructing the filename: the family has
   # renamed an asset prefix mid-line before (go126- -> golang-), and a pin bump must not 404.
   PKG="$(awk -v v="-$VARIANT-" '$2 ~ /\.pkg$/ && index($2, v) { print $2; exit }' "$SUMS")"
@@ -79,7 +80,7 @@ if [ ! -x "$DEST/bin/clang" ]; then
   [ -n "$PKG" ] && [ -n "$SHA" ] || { echo "fetch-toolchain.sh: no '$VARIANT' .pkg listed in $VERSION's SHA256SUMS" >&2; exit 1; }
 
   TB="$CACHE/$PKG"
-  [ -f "$TB" ] || curl -sL --fail -o "$TB" "$RELEASE_BASE/$VERSION/$PKG" || { rm -f "$TB"; echo "fetch-toolchain.sh: download failed: $RELEASE_BASE/$VERSION/$PKG" >&2; exit 1; }
+  [ -f "$TB" ] || shipyard_curl "$RELEASE_BASE/$VERSION/$PKG" "$TB" || { rm -f "$TB"; echo "fetch-toolchain.sh: download failed: $RELEASE_BASE/$VERSION/$PKG" >&2; exit 1; }
   echo "$SHA  $TB" | shasum -a 256 -c - >&2 || { echo "fetch-toolchain.sh: checksum mismatch; refusing to unpack $TB" >&2; exit 1; }
 
   TMP="$CACHE/.expand.$VARIANT.$$"

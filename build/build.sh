@@ -13,6 +13,7 @@ set -eu
 SELF="$(cd "$(dirname "$0")" && pwd)"
 MAVERICKS_ROOT="$(cd "$SELF/.." && pwd)"; export MAVERICKS_ROOT
 . "$SELF/msc.sh"                                   # sets $SHIPYARD
+. "$SHIPYARD/mavericks_fetch.sh"
 . "$SELF/paths.sh"
 . "$SELF/python-314-compat.sh"
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
@@ -62,10 +63,10 @@ fetch() {
   mkdir -p "$NODE_WORK"
   tarball="$NODE_WORK/node-v${NODE_VERSION}.tar.gz"
   base="https://nodejs.org/dist/v${NODE_VERSION}"
-  [ -f "$tarball" ] || curl -fL -o "$tarball" "$base/node-v${NODE_VERSION}.tar.gz"
+  [ -f "$tarball" ] || shipyard_curl "$base/node-v${NODE_VERSION}.tar.gz" "$tarball"
   # Verify against Node's published, per-release SHASUMS256.txt (frozen by the pinned version).
   sums="$NODE_WORK/SHASUMS256-${NODE_VERSION}.txt"
-  [ -f "$sums" ] || curl -fL -o "$sums" "$base/SHASUMS256.txt"
+  [ -f "$sums" ] || shipyard_curl "$base/SHASUMS256.txt" "$sums"
   want="$(awk -v f="node-v${NODE_VERSION}.tar.gz" '$2==f{print $1}' "$sums")"
   [ -n "$want" ] || { echo "build.sh: node-v${NODE_VERSION}.tar.gz not listed in SHASUMS256.txt" >&2; exit 1; }
   got="$(shasum -a 256 "$tarball" | awk '{print $1}')"
