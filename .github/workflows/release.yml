@@ -47,7 +47,7 @@ jobs:
       # Node 24.6's configure accepts Python through 3.14; don't inherit a newer runner default.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       # spec: build/paths.sh -- NODE_WORK (source, objects, updater, stage, pkg) derives from this.
       - name: Build out of tree
