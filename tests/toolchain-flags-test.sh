@@ -46,7 +46,7 @@ printf 'PROVIDER=mavericks-clang\n' > "$T/components/toolchain/version"
   check CXXFLAGS \
     "-std=c++20 -include $NODE_SRC/deps/mavericks-compat/polyfills.h -D_LIBCPP_DISABLE_AVAILABILITY -faligned-allocation -fno-aligned-new" \
     "$CXXFLAGS" || f=1
-  check CFLAGS   "" "$CFLAGS"   || f=1
+  check CFLAGS   "-DMAVERGREEN_USE_RECAULK" "$CFLAGS"   || f=1
   check CPPFLAGS "" "$CPPFLAGS" || f=1
   check LDFLAGS  "" "$LDFLAGS"  || f=1
   check DEPLOY "10.9" "$MACOSX_DEPLOYMENT_TARGET" || f=1
