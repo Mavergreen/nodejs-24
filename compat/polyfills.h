@@ -1,9 +1,10 @@
 #ifndef MAVERICKS_POLYFILLS_H
 #define MAVERICKS_POLYFILLS_H
 
-/* Node/V8-specific 10.9 back-fills NOT covered by the toolchain's bundled legacy-support.
+/* Node/V8 declarations missing from the 10.9 SDK.
  * This header carries only DECLARATIONS (macros + prototypes) and is safe to force-include into
- * every translation unit; the definitions live in polyfills.c, linked globally. Scope (see the port's
+ * every translation unit; Recaulk supplies the definitions for Mavergreen clang,
+ * while polyfills.c supplies them for the MacPorts fallback. Scope (see the port's
  * spec): QoS constants for V8 platform-posix.cc, and SecTrustEvaluateWithError for Node crypto.
  * recvmsg_x/sendmsg_x are deliberately NOT declared here -- libuv's own deps/uv/src/unix/
  * darwin-syscalls.h declares them (and struct mmsghdr); we only supply their definitions. */
