@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 # This repo ships ONE Node major from the root UPSTREAM_VERSION (see build/version.sh) -- lines/ is
 # retired. Assert: lines/ does not exist; exactly one Renovate customManager matches the root
 # UPSTREAM_VERSION; and that manager is capped (allowedVersions, inline or via a packageRule), so

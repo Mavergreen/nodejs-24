@@ -11,3 +11,7 @@ Applied by `build/build.sh` with `patch -p1` (Apple patch 2.0-safe; no --merge) 
 
 Deterministic source edits awkward as context patches (common.gypi deployment target, V8 safepoint
 pthread_override removal) live as a `fixups` step in build/build.sh, not here.
+
+- 0005-python-315.patch: extend configure selection and acceptance to Python 3.15.
+  The release build and native-fixture generation exercise this interpreter; applying it is a no-op
+  once upstream already selects and accepts 3.15.

@@ -1,5 +1,8 @@
 #!/bin/sh
+# platform: macOS-only -- exercises the Darwin build, package, or target executable.
 set -eu
+command -v shipyard-cmake >/dev/null 2>&1 || [ -x /usr/local/mavergreen/bin/shipyard-cmake ] \
+  || { echo "no shipyard-cmake -- skipping packaging rebuild"; exit 77; }
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
 paths="$(sh "$root/build/paths.sh")"
 SRC="$(printf '%s\n' "$paths" | sed -n 's/^SRC=//p')"

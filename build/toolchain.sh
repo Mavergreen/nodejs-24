@@ -1,3 +1,4 @@
+# platform: host-agnostic
 # build/toolchain.sh -- sourced. Resolves the toolchain provider from components/toolchain/version and
 # exports CC/CXX and the *FLAGS the Node build uses. The ONLY place that knows which provider is active.
 # Requires $NODE_SRC (the Node build-tree root) for the force-include path.

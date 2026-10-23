@@ -7,7 +7,8 @@ A Node *major* is a product; this repo ships exactly ONE major, derived from the
 | Ingredient | Pinned in | Renovate | A bump does |
 |---|---|---|---|
 | Node.js (line 24) | `UPSTREAM_VERSION` | ✅ capped `github-tags` on `nodejs/node` (`<25`) | fetch+verify+build a new `24.x`, cut `24.x-mavericks.1` |
-| Toolchain | `components/toolchain/version` (`VERSION`) | ✅ `github-releases` on `Mavergreen/clang`, SHA256SUMS-verified | fetch+verify this host's variant of the pinned `.pkg`, rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
+| Toolchain | `components/toolchain/version` (`VERSION`) | ✅ `github-releases` on `Mavergreen/clang-22`, SHA256SUMS-verified | fetch+verify this host's variant of the pinned `.pkg`, rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
+| Acceptance-test Python | `components/test-python/version` | ✅ `github-releases` on `Mavergreen/python-315` | CI only; runs upstream tests in the Mavericks VM, does not trigger repackaging |
 | shipyard | `.github/workflows/*.yml` `uses: …@v1` | ✅ built-in github-actions manager | pulls new shared scripts/gate; does not change the node binary |
 | GitHub Actions | `.github/workflows/*.yml` `uses:` | ✅ built-in github-actions manager | CI-only; does not change the node binary |
 | Sparkle framework (updater) | shipyard's `MavericksSparkle` (fetched at configure time) | ✅ moves when shipyard's `v1` moves (CI installs `@v1`; a local build uses the installed shipyard pkg) | picked up by the next `build/updater.sh`; does not change the node binary |
@@ -24,12 +25,18 @@ picks its variant from the build MODE. A cross build additionally needs Node's `
 --dest-os=mac --cross-compiling`. gyp then builds the tools that run during the build (torque,
 mksnapshot, node_js2c, the ICU generators) in a separate host toolset, as native arm64 with Apple's
 clang (`CC_host`/`CXX_host` from `build.sh host-env`) against the build machine's SDK. **No step of
-either build runs under Rosetta.** On an arm64 Mac without Rosetta, the cross build completes, its V8
-`snapshot.cc` and `embedded.S` are byte-identical to the native 10.9 build's, and its `node` matches the
-committed native equivalence fingerprint on 10.9. The tests that execute the x86_64 `node` (smoke,
-equivalence-fingerprint, startup-snapshot) run it natively on an x86_64 host such as the real 10.9 box,
-under Rosetta where an Apple-Silicon host has it (declared below), and SKIP elsewhere.
-`tests/rosetta-free-test.sh` fails if the build ever uses Rosetta, or a test uses it undeclared.
+either build runs under Rosetta.** The compatibility guard checks the target binary's floor and imports. The release workflow then
+installs its own pkg in a stock Mavericks VM and checks the installed version, wrappers and startup
+snapshot. It runs the matching upstream JavaScript suites, stress tests, compiled addon/Node-API/SQLite
+fixtures, embedding tests, benchmark smoke tests and C++ tests against the installed Node. Python for
+the guest harness is a separately pinned CI tool. Native test fixtures are cross-built using a native
+host Node to drive node-gyp; preparation never executes the target Node.
+
+There is no committed version-specific fingerprint to bless after each upstream update. Runtime
+acceptance tests the current artifact on its target OS, and publish waits for that job. The VM job also
+runs this repo's suite through shipyard; tests needing developer tools may skip there, while the
+explicit installed-product and upstream checks must succeed. Host tests run serially because the
+updater repackage test temporarily changes VERSION and shares the updater build directory.
 
 Both builds configure `--without-node-snapshot`. Node's startup snapshot is made by running Node's
 bootstrap as target-arch code, and V8 has no x64 simulator, so an arm64 host could only make it under
@@ -91,5 +98,6 @@ reconcile.
 
 ## Conformance deviations
 
-- rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke, equivalence-fingerprint and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. Reconsider when these tests run on a Mavericks VM runner in CI (what vm-guest is building toward), and at the latest before macOS 28 removes Rosetta; until then, a native x86_64 host (the real 10.9 box) runs them without it.
-- on-target: no 10.9 acceptance job yet; exit: a release.yml job on Mavergreen/mavericks-vm@v1 that installs this run's pkg in the guest and runs what it ships, which publish needs
+- rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. The required Mavericks VM job runs these checks natively; Rosetta retains additional host-side feedback where available.
+- on-target:upstream-specialized: upstream internet, documentation-tool, tick-processor and V8-maintenance suites are outside the runtime gate, as are documentation-generated addon examples. Revisit when adding coverage for those facilities; failures in the selected runtime suites are never suppressed.
+- on-target:updater-ui: package installation and updater registration are covered, but interactive Sparkle UI is not exercised in the headless VM. Revisit with an automated GUI acceptance harness.

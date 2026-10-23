@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 #   usage: sh build/npm-wrapper.sh <prefix> <product> <cli path under lib/node_modules>
 #          Prints a sh wrapper that runs <cli> with <prefix>/bin/node, with <prefix>/bin first on PATH so
 #          what it launches (scripts, npx tools, node-gyp) finds the same node. It execs, except after a

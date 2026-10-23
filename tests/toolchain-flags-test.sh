@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 # Both toolchain providers must emit exactly the inputs the Node build expects. Compiler-free: we
 # assert the emitted CC/CXX/*FLAGS, we never run the compiler. Each provider is driven through a
 # synthetic components/toolchain/version so BOTH are covered regardless of which one is active in the

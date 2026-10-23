@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: macOS-only -- exercises the Darwin build, package, or target executable.
 #   usage: sh build/package.sh identity   print the pkg identity as key=value (no build, no version)
 #          sh build/package.sh pkg        package the built tree; prints the .pkg path last
 set -eu

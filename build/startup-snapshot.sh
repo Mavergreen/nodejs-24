@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 #   usage: <prefix>/libexec/mavergreen/build-startup-snapshot
 #          (Re)generates <prefix>/lib/node/startup.blob with <prefix>/bin/node, which loads it at every
 #          start. Installed into the product tree and run by the pkg's postinstall; safe to rerun by hand.

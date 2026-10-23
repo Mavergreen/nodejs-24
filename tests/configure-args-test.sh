@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 # build.sh must assemble the same ./configure invocation the monolith used, with the per-line prefix --
 # plus, in cross MODE, the flags that tell Node it is not building for the host it runs on.
 set -eu

@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: macOS-only -- exercises the Darwin build, package, or target executable.
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
 fail=0
@@ -13,6 +14,9 @@ for f in $(rosetta_users "$root"/tests/*.sh "$root"/tests/lib/*.sh); do
   grep -q "^- rosetta:$f: " "$root/INGREDIENTS.md" \
     || say "$f uses Rosetta but INGREDIENTS.md declares no '- rosetta:$f: <what, why, when to reconsider>'"
 done
+
+# platform: the host-compiler checks need CLT, absent from the stock acceptance VM.
+xcode-select -p >/dev/null 2>&1 || { echo "no host developer tools -- skipping"; exit 77; }
 
 env_cross="$(MODE=cross sh "$root/build/build.sh" host-env)"
 cc_host="$(printf '%s\n' "$env_cross" | sed -n 's/^CC_host=//p')"
