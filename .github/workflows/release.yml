@@ -44,12 +44,17 @@ jobs:
 
       - uses: Mavergreen/shipyard/.github/actions/install@v1
 
-      # Node 24.6's configure accepts Python through 3.14; don't inherit a newer runner default.
+      # spec: patches/0005-python-315.patch -- exercise the configure backport in every build.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
-      # spec: build/paths.sh -- NODE_WORK (source, objects, updater, stage, pkg) derives from this.
+      # platform: node-gyp runs on the host while producing x86_64 addon fixtures.
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: UPSTREAM_VERSION
+
+      # spec: build/paths.sh -- all build outputs derive from this local directory.
       - name: Build out of tree
         run: echo "MAVERICKS_BUILD_ROOT=$RUNNER_TEMP/mm-build" >> "$GITHUB_ENV"
 
@@ -95,11 +100,16 @@ jobs:
       - name: Build node (fetch, patch, configure, make, compat guard)
         run: sh build/build.sh all
 
-      # spec: INGREDIENTS.md "Build and packaging" -- after the build, so smoke, equivalence-fingerprint
+      # spec: INGREDIENTS.md "Build and packaging" -- after the build, so smoke
       #       and startup-snapshot run the built x86_64 node (under Rosetta while macos-26 has it, as
       #       declared in rosetta:tests/lib/x86_64.sh; SKIP 77 without) instead of skipping as unbuilt.
       - name: Tests
+        env:
+          MAVERICKS_TEST_JOBS: "1"
         run: sh "$SHIPYARD_SCRIPTS/run-repo-tests.sh"
+
+      - name: Prepare upstream tests for Mavericks
+        run: HOST_NODE="$(command -v node)" sh build/prepare-vm-tests.sh
 
       # spec: tests/updater-test.sh -- it rebuilds the updater at -mavericks.N+1 in the same build dir,
       #       and package.sh refuses an updater that is not this build's version, so this comes after.
@@ -179,8 +189,52 @@ jobs:
             dist/RELEASE_NOTES.md
             dist/*.xml
 
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nodejs-vm-tests
+          path: ${{ env.MAVERICKS_BUILD_ROOT }}/nodejs/node-vm-tests.tar.gz
+
       - name: The build must not have written into the source tree
         run: sh "$SHIPYARD_SCRIPTS/assert-tree-clean.sh"
+
+  on-mavericks:
+    needs: [build]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Mavergreen/shipyard/.github/actions/install@v1
+      - uses: actions/download-artifact@v8
+        with:
+          name: mavergreen-nodejs
+          path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: nodejs-vm-tests
+          path: dist
+      - name: Prepare guest harness
+        run: |
+          cp -R "$SHIPYARD_SCRIPTS" .shipyard-scripts
+          sh build/fetch-test-python.sh "$PWD/test-tools"
+      - uses: Mavergreen/mavericks-vm@v1
+        env:
+          FULL: ${{ needs.build.outputs.version }}
+        with:
+          image-key: ${{ secrets.MAVERICKS_VM_KEY }}
+          envs: FULL
+          debug-on-error: true
+          run: sh tests/vm/run.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mavericks-test-results
+          path: |
+            vm-results/
+            snapshot.log
 
   # spec: shipyard scan-for-key.yml header -- a run that failed after signing left public logs too.
   scan:
@@ -192,7 +246,7 @@ jobs:
     secrets: { SPARKLE_PRIVATE_KEY: "${{ secrets.SPARKLE_PRIVATE_KEY }}" }
 
   publish:
-    needs: [build, scan]
+    needs: [build, scan, on-mavericks]
     if: needs.build.outputs.publish == 'yes'
     permissions: { contents: write }
     uses: Mavergreen/shipyard/.github/workflows/publish-release.yml@v1

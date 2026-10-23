@@ -1,3 +1,4 @@
+# platform: host-agnostic
 #   usage: . build/paths.sh    (with MAVERICKS_ROOT set) sets NODE_LINE NODE_VERSION PRODUCT PREFIX NODE_WORK SRC
 #          sh build/paths.sh   prints them as key=value
 case "$0" in *paths.sh) set -eu ;; esac

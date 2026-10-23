@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 #   usage: sh build/hooks.sh <preinstall|postinstall> <prefix> <product>
 #          Prints this product's hook body for stage_product.sh --preinstall-hook/--postinstall-hook.
 #          preinstall stashes the user's npm global packages (every lib/node_modules entry but npm and

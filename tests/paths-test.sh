@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
 V="$(tr -d '[:space:]' < "$root/UPSTREAM_VERSION")"; L="${V%%.*}"

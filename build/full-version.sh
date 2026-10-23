@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 #   usage: sh build/full-version.sh [auto|local]
 #          Prints this build's full version, <UPSTREAM_VERSION>-mavericks.N, via shipyard's
 #          resolve-version.sh (which writes the gitignored VERSION). Refuses a VERSION left over from

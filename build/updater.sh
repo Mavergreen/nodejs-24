@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: macOS-only -- exercises the Darwin build, package, or target executable.
 #   usage: sh build/updater.sh
 #          Builds node<line>-updater.app out of tree under $NODE_WORK/updater with shipyard-cmake, refuses
 #          one that links a product tree, and prints the .app path last.

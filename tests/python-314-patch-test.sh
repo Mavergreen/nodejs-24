@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: host-agnostic
 # The pinned Node configure shim must prefer Python 3.14 and accept it. Node
 # 24.21 already has this support, so applying the compatibility patch is a no-op.
 set -eu

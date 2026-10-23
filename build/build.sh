@@ -1,4 +1,5 @@
 #!/bin/sh
+# platform: macOS-only -- exercises the Darwin build, package, or target executable.
 # build/build.sh <subcommand> -- the Node build, decomposed. This repo ships ONE Node major line,
 # derived from the root UPSTREAM_VERSION (see build/version.sh). Subcommands:
 #   configure-args   print the ./configure argv for this line (dry; no compiler)
@@ -16,6 +17,7 @@ MAVERICKS_ROOT="$(cd "$SELF/.." && pwd)"; export MAVERICKS_ROOT
 . "$SHIPYARD/mavericks_fetch.sh"
 . "$SELF/paths.sh"
 . "$SELF/python-314-compat.sh"
+. "$SELF/python-315-compat.sh"
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 # Node's gyp invokes `libtool -static` / `ar` / `ranlib` by BARE NAME to build static archives. Two
@@ -82,6 +84,8 @@ apply_patches() {
     echo "  applying $(basename "$p")"
     if [ "$(basename "$p")" = 0004-python-314.patch ]; then
       apply_python_314_compat_patch "$SRC" "$p"
+    elif [ "$(basename "$p")" = 0005-python-315.patch ]; then
+      apply_python_315_compat_patch "$SRC" "$p"
     else
       ( cd "$SRC" && patch -p1 < "$p" )
     fi
