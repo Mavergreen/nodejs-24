@@ -10,8 +10,9 @@ prefix="$(cd "$here/../.." && pwd -P)"
 node="$prefix/bin/node"; out="$prefix/lib/node/startup.blob"
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/node-startup-snapshot.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
-: > "$tmp/empty.js"
-( cd "$tmp" && "$node" --snapshot-blob "$tmp/startup.blob" --build-snapshot "$tmp/empty.js" ) >/dev/null
+# spec: Node src/node.cc -- a default snapshot defers runtime initialization;
+# an empty script instead creates a fully customized snapshot with captured state.
+( cd "$tmp" && "$node" --snapshot-blob "$tmp/startup.blob" --build-snapshot node:generate_default_snapshot ) >/dev/null
 "$node" --snapshot-blob "$tmp/startup.blob" -e 0
 mkdir -p "$prefix/lib/node"
 cp "$tmp/startup.blob" "$out.new.$$"
