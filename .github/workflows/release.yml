@@ -8,7 +8,44 @@ concurrency:
   group: sandbox-diagnostic-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
+  prepare:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: mavergreen-nodejs
+          path: dist
+          run-id: 40089756198
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: nodejs-vm-tests
+          path: dist
+          run-id: 40089756198
+          github-token: ${{ github.token }}
+      - name: Prepare legacy-compatible signature on modern macOS
+        run: |
+          set -eu
+          mkdir source
+          tar -xzf dist/node-vm-tests.tar.gz -C source
+          set -- dist/nodejs-*.pkg
+          [ "$#" -eq 1 ]
+          pkgutil --expand-full "$1" expanded
+          find expanded -path '*/Payload/usr/local/mavergreen/node24/bin/node' > binary-path
+          [ "$(wc -l < binary-path | tr -d ' ')" = 1 ]
+          node_binary=$(cat binary-path)
+          sh build/prepare-sandbox-fixture.sh "$node_binary" source/test/fixtures/macos-app-sandbox prepared
+          tar -czf prepared-sandbox.tar.gz -C prepared .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: prepared-sandbox
+          path: prepared-sandbox.tar.gz
   diagnose:
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -31,6 +68,10 @@ jobs:
           path: dist
           run-id: 40089756198
           github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: prepared-sandbox
+          path: dist
       - uses: Mavergreen/mavericks-vm@v1
         with:
           image-key: ${{ secrets.MAVERICKS_VM_KEY }}
