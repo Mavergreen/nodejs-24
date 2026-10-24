@@ -23,3 +23,11 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
 - 0008-buffer-lifetime-positional-writes.patch: preserve concurrent buffer-lifetime stress with
   disjoint explicit offsets instead of the documented-unsafe implicit-offset race. Check every
   write's result and the full expected byte count, rather than accepting overlaps and >1000 bytes.
+- 0010-host-prepared-sandbox-fixture.patch: use a host-signed sandbox app when supplied by the
+  test bundle, since stock Mavericks lacks codesign_allocate. Match the installed Node's SHA-256,
+  verify the signature, require a successful launch, and retain the upstream home-directory denial
+  assertion. Without a prepared fixture, the original local-signing path remains available.
+- 0011-libuv-sandbox-async-descriptor.patch: lets libuv's EVFILT_USER placeholder
+  use `/dev/null` when App Sandbox denies reading `/`. Keeps the upstream
+  chroot-without-`/dev/null` behavior from libuv#4689. This changes libuv's choice
+  of an unused descriptor, not system API semantics or sandbox permissions.
