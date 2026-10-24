@@ -1,0 +1,26 @@
+--- a/test/parallel/test-fs-sir-writes-alot.js
++++ b/test/parallel/test-fs-sir-writes-alot.js
+@@ -41,7 +41,12 @@
+   // Create a new buffer for each write. Before the write is actually
+   // executed by the thread pool, the buffer will be collected.
+   const buffer = Buffer.from(line);
+-  fs.write(fd, buffer, 0, buffer.length, null, function(er, written) {
++  // Stress asynchronous buffer lifetime with disjoint positional writes.
++  // Concurrent implicit-offset writes are documented as unsafe; Mavericks'
++  // kernel can leave gaps, which says nothing about buffer lifetime.
++  fs.write(fd, buffer, 0, buffer.length, i * buffer.length, function(er, written) {
++    assert.ifError(er);
++    assert.strictEqual(written, line.length);
+     complete++;
+     if (complete === N) {
+       fs.closeSync(fd);
+@@ -63,8 +68,5 @@
+ }
+ 
+ process.on('exit', function() {
+-  // Probably some of the writes are going to overlap, so we can't assume
+-  // that we get (N * line.length). Let's just make sure we've checked a
+-  // few...
+-  assert.ok(bytesChecked > 1000);
++  assert.strictEqual(bytesChecked, N * line.length);
+ });

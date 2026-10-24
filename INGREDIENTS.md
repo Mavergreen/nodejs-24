@@ -116,3 +116,11 @@ localhost can resolve to any address actually configured on a loopback interface
 and HFS+ timestamps are rounded to whole seconds. The timestamp test probes the
 filesystem and retains subsecond checks where supported. Cache-use bookkeeping,
 loopback membership, DNS callback arguments, and all stat APIs remain checked.
+
+`patches/0008-buffer-lifetime-positional-writes.patch` keeps the upstream buffer
+lifetime stress concurrent while giving each write a disjoint explicit position.
+Node documents overlapping asynchronous `fs.write()` calls as unsafe; the original
+test also tolerated overlaps. Mavericks' kernel can leave gaps with shared implicit
+offsets. Explicit positions isolate the intended buffer-lifetime assertion and
+allow checking every write result and the exact total byte count. No runtime write
+semantics are changed.
