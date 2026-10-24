@@ -34,11 +34,12 @@ done
 bundle="$NODE_WORK/vm-tests"
 rm -rf "$bundle"; mkdir -p "$bundle/out/Release"
 # spec: upstream test suites read source fixtures and config.gypi relative to their original tree.
-tar --exclude='./out' --exclude='./.git' -cf "$NODE_WORK/vm-source.tar" .
-tar -xf "$NODE_WORK/vm-source.tar" -C "$bundle"
+# platform: Mavericks tar under the C locale mangles non-ASCII fixture names on round-trip.
+LC_ALL=en_US.UTF-8 tar --exclude='./out' --exclude='./.git' -cf "$NODE_WORK/vm-source.tar" .
+LC_ALL=en_US.UTF-8 tar -xf "$NODE_WORK/vm-source.tar" -C "$bundle"
 rm "$NODE_WORK/vm-source.tar"
 cp out/Release/cctest out/Release/embedtest "$bundle/out/Release/"
 # platform: tests use both process.execPath and out/Release/node; both must resolve the installed pkg.
 ln -s "$PREFIX/bin/node" "$bundle/out/Release/node"
 cp "$MAVERICKS_ROOT/UPSTREAM_VERSION" "$bundle/MAVERGREEN_UPSTREAM_VERSION"
-tar -czf "$NODE_WORK/node-vm-tests.tar.gz" -C "$bundle" .
+LC_ALL=en_US.UTF-8 tar -czf "$NODE_WORK/node-vm-tests.tar.gz" -C "$bundle" .
