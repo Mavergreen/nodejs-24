@@ -20,3 +20,6 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
   install-time builtin code cache, configured loopback addresses, and measured whole-second
   filesystem timestamps. These are test adaptations, not exclusions; all three tests still run.
   The sandbox test also reports codesign stderr when signing fails, so VM failures are diagnosable.
+- 0008-buffer-lifetime-positional-writes.patch: preserve concurrent buffer-lifetime stress with
+  disjoint explicit offsets instead of the documented-unsafe implicit-offset race. Check every
+  write's result and the full expected byte count, rather than accepting overlaps and >1000 bytes.
