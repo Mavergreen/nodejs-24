@@ -32,6 +32,14 @@ fixtures, embedding tests, benchmark smoke tests and C++ tests against the insta
 the guest harness is a separately pinned CI tool. Native test fixtures are cross-built using a native
 host Node to drive node-gyp; preparation never executes the target Node.
 
+`patches/0006-v8-std-hash.patch` backports V8 commit
+[`65ce14d8731e`](https://github.com/v8/v8/commit/65ce14d8731e929584344a0d65d6efd2296fa797).
+Its generic `std::hash` specialization conflicts with libc++ 22: files including V8's
+hash header and other files can disagree on integer hashes, breaking inspector session
+tracking. The backport removes that specialization and names V8's hash explicitly where
+required. The upstream profiler hunk is unnecessary because this version still uses
+integer keys. Remove the patch when the bundled V8 includes the fix.
+
 There is no committed version-specific fingerprint to bless after each upstream update. Runtime
 acceptance tests the current artifact on its target OS, and publish waits for that job. The VM job also
 runs this repo's suite through shipyard; tests needing developer tools may skip there, while the
