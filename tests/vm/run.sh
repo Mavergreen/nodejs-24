@@ -34,7 +34,8 @@ work="$(mktemp -d /tmp/node-vm-tests.XXXXXX)"
 fixture_binary=""
 trap '[ -z "$fixture_binary" ] || sudo rm -f "$fixture_binary"; rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/node-v$upstream"
-tar -xzf dist/node-vm-tests.tar.gz -C "$work/node-v$upstream"
+# platform: keep non-ASCII fixture paths intact with Mavericks tar, even in a C-locale shell.
+LC_ALL=en_US.UTF-8 tar -xzf dist/node-vm-tests.tar.gz -C "$work/node-v$upstream"
 [ "$(cat "$work/node-v$upstream/MAVERGREEN_UPSTREAM_VERSION")" = "$upstream" ]
 # platform: upstream resolves companions beside process.execPath and compares their argv paths;
 # a symlink resolves elsewhere on Darwin, so the temporary fixture must be a real file.
