@@ -31,15 +31,16 @@ PYTHON=/usr/local/mavergreen/python315/bin/python3.15
 PATH="$(dirname "$PYTHON"):$PATH"; export PATH
 SHIPYARD_SCRIPTS="$root/.shipyard-scripts"; export SHIPYARD_SCRIPTS
 work="$(mktemp -d /tmp/node-vm-tests.XXXXXX)"
-fixture_link=""
-trap '[ -z "$fixture_link" ] || sudo rm -f "$fixture_link"; rm -rf "$work"' EXIT HUP INT TERM
+fixture_binary=""
+trap '[ -z "$fixture_binary" ] || sudo rm -f "$fixture_binary"; rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/node-v$upstream"
 tar -xzf dist/node-vm-tests.tar.gz -C "$work/node-v$upstream"
 [ "$(cat "$work/node-v$upstream/MAVERGREEN_UPSTREAM_VERSION")" = "$upstream" ]
-# platform: upstream resolves companion test binaries beside process.execPath, the installed Node.
+# platform: upstream resolves companions beside process.execPath and compares their argv paths;
+# a symlink resolves elsewhere on Darwin, so the temporary fixture must be a real file.
 [ ! -e "$prefix/bin/embedtest" ] && [ ! -L "$prefix/bin/embedtest" ]
-sudo ln -s "$work/node-v$upstream/out/Release/embedtest" "$prefix/bin/embedtest"
-fixture_link="$prefix/bin/embedtest"
+sudo cp "$work/node-v$upstream/out/Release/embedtest" "$prefix/bin/embedtest"
+fixture_binary="$prefix/bin/embedtest"
 NODE_WORK="$work"; export NODE_WORK
 # spec: acceptance on real 10.9 -- mandatory guest checks must not turn exit 77 into green.
 sh tests/smoke-test.sh
