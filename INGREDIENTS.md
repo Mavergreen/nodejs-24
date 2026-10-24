@@ -124,3 +124,15 @@ test also tolerated overlaps. Mavericks' kernel can leave gaps with shared impli
 offsets. Explicit positions isolate the intended buffer-lifetime assertion and
 allow checking every write result and the exact total byte count. No runtime write
 semantics are changed.
+
+The test bundle carries a sandbox app signed on the build host with upstream's
+entitlements. Stock Mavericks can verify and run signed code but its signing
+allocator requires developer tools. The sandbox test checks that the fixture's
+recorded source digest matches the installed Node, verifies its signature, proves
+it launches, then checks the original home-directory denial. This fixture is test
+infrastructure; the product package is unchanged by its preparation.
+
+`patches/0011-libuv-sandbox-async-descriptor.patch` fixes sandboxed event-loop
+startup: libuv's unused EVFILT_USER descriptor falls back from `/` to `/dev/null`
+when opening the root directory is denied. The original root-directory choice
+remains first for chroots without `/dev/null`. No sandbox entitlement is added.

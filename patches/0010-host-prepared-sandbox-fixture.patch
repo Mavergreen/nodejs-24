@@ -1,0 +1,82 @@
+--- a/test/parallel/test-macos-app-sandbox.js
++++ b/test/parallel/test-macos-app-sandbox.js
+@@ -26,32 +26,55 @@
+ const appExecutablePath = path.join(
+   appBundleContentPath, 'MacOS', 'node');
+ 
+-// Construct the app bundle and put the node executable in it:
+-// node_sandboxed.app/
+-// └── Contents
+-//     ├── Info.plist
+-//     ├── MacOS
+-//     │   └── node
+-fs.mkdirSync(appBundlePath);
+-fs.mkdirSync(appBundleContentPath);
+-fs.mkdirSync(path.join(appBundleContentPath, 'MacOS'));
+-fs.copyFileSync(
+-  fixtures.path('macos-app-sandbox', 'Info.plist'),
+-  path.join(appBundleContentPath, 'Info.plist'));
+-fs.copyFileSync(
+-  nodeBinary,
+-  appExecutablePath);
++// The runtime guest can verify signatures but lacks the developer-tools signer.
++// Accept a host-prepared fixture only when it belongs to this exact Node binary.
++const prepared = path.resolve(__dirname, '..', '..', 'out', 'Release',
++                              'macos-sandbox');
++if (fs.existsSync(prepared)) {
++  const expected = fs.readFileSync(path.join(prepared, 'node.sha256'), 'utf8').trim();
++  const actual = require('crypto').createHash('sha256')
++    .update(fs.readFileSync(nodeBinary)).digest('hex');
++  assert.strictEqual(actual, expected,
++                     'prepared sandbox fixture does not match running Node');
++  fs.cpSync(path.join(prepared, 'node_sandboxed.app'), appBundlePath,
++            { recursive: true });
++  const verified = child_process.spawnSync('/usr/bin/codesign',
++                                          ['--verify', appBundlePath]);
++  assert.ifError(verified.error);
++  assert.strictEqual(verified.status, 0, verified.stderr.toString());
++} else {
++  // Construct the app bundle and put the node executable in it:
++  // node_sandboxed.app/
++  // └── Contents
++  //     ├── Info.plist
++  //     ├── MacOS
++  //     │   └── node
++  fs.mkdirSync(appBundlePath);
++  fs.mkdirSync(appBundleContentPath);
++  fs.mkdirSync(path.join(appBundleContentPath, 'MacOS'));
++  fs.copyFileSync(
++    fixtures.path('macos-app-sandbox', 'Info.plist'),
++    path.join(appBundleContentPath, 'Info.plist'));
++  fs.copyFileSync(
++    nodeBinary,
++    appExecutablePath);
+ 
+ 
+-// Sign the app bundle with sandbox entitlements:
+-const signResult = child_process.spawnSync('/usr/bin/codesign', [
+-    '--entitlements', fixtures.path(
+-      'macos-app-sandbox', 'node_sandboxed.entitlements'),
+-    '--force', '-s', '-',
+-    appBundlePath,
+-  ]);
+-assert.ifError(signResult.error);
+-assert.strictEqual(signResult.status, 0, signResult.stderr.toString());
++  // Sign the app bundle with sandbox entitlements:
++  const signResult = child_process.spawnSync('/usr/bin/codesign', [
++      '--entitlements', fixtures.path(
++        'macos-app-sandbox', 'node_sandboxed.entitlements'),
++      '--force', '-s', '-',
++      appBundlePath,
++    ]);
++  assert.ifError(signResult.error);
++  assert.strictEqual(signResult.status, 0, signResult.stderr.toString());
++}
++
++// Prove the signed executable runs before treating home-directory denial as success.
++const started = child_process.spawnSync(appExecutablePath, ['-e', '']);
++assert.ifError(started.error);
++assert.strictEqual(started.status, 0, started.stderr.toString());
+ 
+ // Sandboxed app shouldn't be able to read the home dir
+ assert.notStrictEqual(

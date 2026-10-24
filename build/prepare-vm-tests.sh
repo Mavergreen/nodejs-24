@@ -39,6 +39,9 @@ LC_ALL=en_US.UTF-8 tar --exclude='./out' --exclude='./.git' -cf "$NODE_WORK/vm-s
 LC_ALL=en_US.UTF-8 tar -xf "$NODE_WORK/vm-source.tar" -C "$bundle"
 rm "$NODE_WORK/vm-source.tar"
 cp out/Release/cctest out/Release/embedtest "$bundle/out/Release/"
+# platform: stock Mavericks can verify signatures but has no developer-tools signing allocator.
+sh "$SELF/prepare-sandbox-fixture.sh" "$SRC/out/Release/node" \
+  "$SRC/test/fixtures/macos-app-sandbox" "$bundle/out/Release/macos-sandbox"
 # platform: tests use both process.execPath and out/Release/node; both must resolve the installed pkg.
 ln -s "$PREFIX/bin/node" "$bundle/out/Release/node"
 cp "$MAVERICKS_ROOT/UPSTREAM_VERSION" "$bundle/MAVERGREEN_UPSTREAM_VERSION"
