@@ -15,3 +15,8 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
 - 0005-python-315.patch: extend configure selection and acceptance to Python 3.15.
   The release build and native-fixture generation exercise this interpreter; applying it is a no-op
   once upstream already selects and accepts 3.15.
+- 0006-v8-std-hash.patch: backport V8's fix for inconsistent integral hashes with libc++ 22.
+- 0007-runtime-test-assumptions.patch: retain upstream behavioral assertions while accounting for
+  install-time builtin code cache, configured loopback addresses, and measured whole-second
+  filesystem timestamps. These are test adaptations, not exclusions; all three tests still run.
+  The sandbox test also reports codesign stderr when signing fails, so VM failures are diagnosable.

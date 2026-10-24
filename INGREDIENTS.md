@@ -109,3 +109,10 @@ reconcile.
 - rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. The required Mavericks VM job runs these checks natively; Rosetta retains additional host-side feedback where available.
 - on-target:upstream-specialized: upstream internet, documentation-tool, tick-processor and V8-maintenance suites are outside the runtime gate, as are documentation-generated addon examples. Revisit when adding coverage for those facilities; failures in the selected runtime suites are never suppressed.
 - on-target:updater-ui: package installation and updater registration are covered, but interactive Sparkle UI is not exercised in the headless VM. Revisit with an automated GUI acceptance harness.
+
+`patches/0007-runtime-test-assumptions.patch` adapts three upstream test assumptions
+without excluding tests: code cache can come from the installed startup snapshot;
+localhost can resolve to any address actually configured on a loopback interface;
+and HFS+ timestamps are rounded to whole seconds. The timestamp test probes the
+filesystem and retains subsecond checks where supported. Cache-use bookkeeping,
+loopback membership, DNS callback arguments, and all stat APIs remain checked.
