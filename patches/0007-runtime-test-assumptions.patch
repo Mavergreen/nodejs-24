@@ -1,0 +1,82 @@
+--- a/test/parallel/test-code-cache.js
++++ b/test/parallel/test-code-cache.js
+@@ -52,8 +52,9 @@
+     // cache are hit
+     assert.notDeepStrictEqual(compiledWithCache, new Set());
+   }
+-} else {  // Native compiled
+-  assert(process.config.variables.node_use_node_code_cache);
++} else {
++  // A default snapshot generated after compilation also supplies builtin cache.
++  // Validate actual cache use below; the build-time setting cannot describe it.
+ 
+   const wrong = [];
+   for (const key of loadedModules) {
+--- a/test/parallel/test-net-dns-lookup.js
++++ b/test/parallel/test-net-dns-lookup.js
+@@ -23,6 +23,13 @@
+ const common = require('../common');
+ const assert = require('assert');
+ const net = require('net');
++const os = require('os');
++
++// Mavericks also configures fe80::1 on its loopback interface. Require an
++// actual local loopback address instead of assuming only two spellings.
++const loopbackAddresses = new Set(
++  Object.values(os.networkInterfaces()).flat()
++    .filter((entry) => entry.internal).map((entry) => entry.address));
+ 
+ const server = net.createServer(function(client) {
+   client.end();
+@@ -33,7 +40,7 @@
+   net.connect(this.address().port, 'localhost')
+     .on('lookup', common.mustCallAtLeast(function(err, ip, type, host) {
+       assert.strictEqual(err, null);
+-      assert.match(ip, /^(127\.0\.0\.1|::1)$/);
++      assert.ok(loopbackAddresses.has(ip), `${ip} is not a loopback address`);
+       assert.match(type.toString(), /^(4|6)$/);
+       assert.strictEqual(host, 'localhost');
+     }, 1));
+--- a/test/parallel/test-fs-stat-date.mjs
++++ b/test/parallel/test-fs-stat-date.mjs
+@@ -24,8 +24,19 @@
+   common.skip(`Unsupported filesystem (atime=${atimeMs}, mtime=${mtimeMs})`);
+ }
+ 
++// HFS+ stores whole seconds. Probe the filesystem instead of inferring its
++// precision from the CPU architecture or OS version.
++await fsPromises.utimes(filepath, 2.123, 3.456);
++const precisionProbe = await fsPromises.stat(filepath);
++const wholeSeconds = precisionProbe.atimeMs === 2000 &&
++                     precisionProbe.mtimeMs === 3000;
++
+ // Date might round down timestamp
+ function closeEnough(actual, expected, margin) {
++  if (wholeSeconds) {
++    const rounded = Math.floor(Number(expected) / 1000) * 1000;
++    expected = typeof expected === 'bigint' ? BigInt(rounded) : rounded;
++  }
+   // On ppc64, value is rounded to seconds
+   if (process.arch === 'ppc64') {
+     margin += 1000;
+--- a/test/parallel/test-macos-app-sandbox.js
++++ b/test/parallel/test-macos-app-sandbox.js
+@@ -44,14 +44,14 @@
+ 
+ 
+ // Sign the app bundle with sandbox entitlements:
+-assert.strictEqual(
+-  child_process.spawnSync('/usr/bin/codesign', [
++const signResult = child_process.spawnSync('/usr/bin/codesign', [
+     '--entitlements', fixtures.path(
+       'macos-app-sandbox', 'node_sandboxed.entitlements'),
+     '--force', '-s', '-',
+     appBundlePath,
+-  ]).status,
+-  0);
++  ]);
++assert.ifError(signResult.error);
++assert.strictEqual(signResult.status, 0, signResult.stderr.toString());
+ 
+ // Sandboxed app shouldn't be able to read the home dir
+ assert.notStrictEqual(
