@@ -1,9 +1,9 @@
+#if defined(__APPLE__) && !defined(MAVERGREEN_USE_RECAULK)
 #include "polyfills.h"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <errno.h>
 
-#if defined(__APPLE__) && !defined(MAVERGREEN_USE_RECAULK)
 
 /* No-op: 10.9 has no per-thread QoS self-assignment. */
 int pthread_set_qos_class_self_np(int qos_class, int relative_priority) {

@@ -44,7 +44,7 @@ printf 'PROVIDER=mavericks-clang\n' > "$T/components/toolchain/version"
   check CC  "/tc/bin/clang"   "$CC"  || f=1
   check CXX "/tc/bin/clang++" "$CXX" || f=1
   check CXXFLAGS \
-    "-std=c++20 -include $NODE_SRC/deps/mavericks-compat/polyfills.h -D_LIBCPP_DISABLE_AVAILABILITY -faligned-allocation -fno-aligned-new" \
+    "-std=c++20 -DMAVERGREEN_USE_RECAULK -include $NODE_SRC/deps/mavericks-compat/polyfills.h -D_LIBCPP_DISABLE_AVAILABILITY -faligned-allocation -fno-aligned-new" \
     "$CXXFLAGS" || f=1
   check CFLAGS   "-DMAVERGREEN_USE_RECAULK" "$CFLAGS"   || f=1
   check CPPFLAGS "" "$CPPFLAGS" || f=1

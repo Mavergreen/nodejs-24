@@ -1,6 +1,12 @@
 #ifndef MAVERICKS_POLYFILLS_H
 #define MAVERICKS_POLYFILLS_H
 
+#if defined(MAVERGREEN_USE_RECAULK)
+/* Shared declarations must match the definitions supplied by the toolchain. */
+#include <pthread/qos.h>
+#include <Security/SecTrust.h>
+#else
+
 /* Node/V8 declarations missing from the 10.9 SDK.
  * This header carries only DECLARATIONS (macros + prototypes) and is safe to force-include into
  * every translation unit; Recaulk supplies the definitions for Mavergreen clang,
@@ -52,5 +58,7 @@ bool SecTrustEvaluateWithError(SecTrustRef trust, CFErrorRef *error);
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* MAVERGREEN_USE_RECAULK */
 
 #endif /* MAVERICKS_POLYFILLS_H */

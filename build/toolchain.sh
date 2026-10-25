@@ -24,17 +24,16 @@ case "$(_tc_provider)" in
     CC="$TCP/bin/clang"
     CXX="$TCP/bin/clang++"
     # The toolchain's own clang.cfg/clang++.cfg already inject --target=x86_64-apple-macos10.9,
-    # -isysroot <prefix>/SDKs/MacOSX10.9.sdk, -mmacosx-version-min=10.9, the mavericks-compat and
-    # Recaulk header shadows, static libc++/libc++abi/libunwind and the Apple frameworks. So the
+    # -isysroot <prefix>/SDKs/MacOSX10.9.sdk, -mmacosx-version-min=10.9, the Recaulk header
+    # shadows, static libc++, the system C++ ABI, and the Apple frameworks. So the
     # seam adds ONLY what is specific to Node/V8 -- restating the macports apparatus would fight the cfg:
-    #   -include polyfills.h  Node and V8 need declarations absent from the 10.9 SDK
-    #                         (os_signpost_*, pthread_set_qos_class_self_np, recvmsg_x/sendmsg_x,
-    #                         SecTrustEvaluateWithError); Recaulk supplies the definitions.
+    #   -include polyfills.h  selects Recaulk QoS and Security declarations for Node/V8.
+    #   -DMAVERGREEN_USE_RECAULK  selects shared declarations and disables local definitions.
     #   -D_LIBCPP_DISABLE_AVAILABILITY  we link our OWN libc++ statically, so libc++'s "unavailable
     #                         before 10.13/10.14" annotations (std::optional's bad_optional_access,
     #                         std::filesystem, ...) do not apply to us.
     #   -faligned-allocation -fno-aligned-new  as the monolith had them, for the same reason.
-    CXXFLAGS="-std=c++20 -include $NODE_SRC/deps/mavericks-compat/polyfills.h -D_LIBCPP_DISABLE_AVAILABILITY -faligned-allocation -fno-aligned-new"
+    CXXFLAGS="-std=c++20 -DMAVERGREEN_USE_RECAULK -include $NODE_SRC/deps/mavericks-compat/polyfills.h -D_LIBCPP_DISABLE_AVAILABILITY -faligned-allocation -fno-aligned-new"
     # platform: Recaulk now owns all four polyfills.c definitions; MacPorts still needs them.
     CFLAGS="-DMAVERGREEN_USE_RECAULK"
     CPPFLAGS=""

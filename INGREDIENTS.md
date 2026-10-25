@@ -136,3 +136,9 @@ infrastructure; the product package is unchanged by its preparation.
 startup: libuv's unused EVFILT_USER descriptor falls back from `/` to `/dev/null`
 when opening the root directory is denied. The original root-directory choice
 remains first for chroots without `/dev/null`. No sandbox entitlement is added.
+
+The clang ingredient supplies Recaulk’s QoS and Security declarations as well as
+its implementations; the Mavergreen build does not use the local MacPorts fallback.
+`patches/0009-recaulk-udp-wait.patch` passes libuv’s live UDP reader registrations
+to Recaulk’s shared readiness helper. Libuv keeps ownership and dispatch; the
+Mavericks empty-datagram compatibility behavior remains in Recaulk.
