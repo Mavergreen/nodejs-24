@@ -23,6 +23,9 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
 - 0008-buffer-lifetime-positional-writes.patch: preserve concurrent buffer-lifetime stress with
   disjoint explicit offsets instead of the documented-unsafe implicit-offset race. Check every
   write's result and the full expected byte count, rather than accepting overlaps and >1000 bytes.
+- 0009-recaulk-udp-wait.patch: adapt libuv’s live UDP reader registrations to Recaulk’s
+  shared wait API, preserving empty-datagram readiness on Mavericks. Generic compatibility
+  behavior lives in Recaulk; libuv retains descriptor ownership and event dispatch.
 - 0010-host-prepared-sandbox-fixture.patch: use a host-signed sandbox app when supplied by the
   test bundle, since stock Mavericks lacks codesign_allocate. Match the installed Node's SHA-256,
   verify the signature, require a successful launch, and retain the upstream home-directory denial

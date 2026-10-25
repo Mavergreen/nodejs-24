@@ -2,4 +2,4 @@
 # platform: both variants target x86_64/10.9; native runs on Mavericks, cross on Apple Silicon.
 # spec: clang.cfg and clang++.cfg carry the target, Recaulk, static C++ runtime and SDK paths.
 PROVIDER=mavericks-clang
-VERSION=22.1.8-mavericks.4
+VERSION=22.1.8-mavericks.8
