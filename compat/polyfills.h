@@ -2,9 +2,8 @@
 #define MAVERICKS_POLYFILLS_H
 
 #if defined(MAVERGREEN_USE_RECAULK)
-/* Shared declarations must match the definitions supplied by the toolchain. */
+/* V8 needs QoS in its platform source; Security is included by Node crypto. */
 #include <pthread/qos.h>
-#include <Security/SecTrust.h>
 #else
 
 /* Node/V8 declarations missing from the 10.9 SDK.
