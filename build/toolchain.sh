@@ -27,7 +27,7 @@ case "$(_tc_provider)" in
     # -isysroot <prefix>/SDKs/MacOSX10.9.sdk, -mmacosx-version-min=10.9, the Recaulk header
     # shadows, static libc++, the system C++ ABI, and the Apple frameworks. So the
     # seam adds ONLY what is specific to Node/V8 -- restating the macports apparatus would fight the cfg:
-    #   -include polyfills.h  selects Recaulk QoS and Security declarations for Node/V8.
+    #   -include polyfills.h  selects Recaulk QoS declarations for V8; Node crypto includes Security itself.
     #   -DMAVERGREEN_USE_RECAULK  selects shared declarations and disables local definitions.
     #   -D_LIBCPP_DISABLE_AVAILABILITY  we link our OWN libc++ statically, so libc++'s "unavailable
     #                         before 10.13/10.14" annotations (std::optional's bad_optional_access,
