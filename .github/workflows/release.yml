@@ -50,7 +50,7 @@ jobs:
           python-version: "3.15"
 
       # platform: node-gyp runs on the host while producing x86_64 addon fixtures.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: UPSTREAM_VERSION
 
