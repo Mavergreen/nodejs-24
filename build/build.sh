@@ -10,6 +10,7 @@
 #   configure        run ./configure (needs the toolchain)
 #   make             run make (needs the toolchain); records the build tools in $NODE_WORK/build-tools.txt
 #   guard            assert the built binary is 10.9-safe
+#   host-compiler OUT REAL   write OUT, a Linux cross build's host-toolset compiler wrapping REAL
 #   all              fetch -> patch -> stage-compat -> configure -> make -> guard
 set -eu
 SELF="$(cd "$(dirname "$0")" && pwd)"
@@ -58,7 +59,7 @@ for a do
   shift
   if [ -n "$skip" ]; then skip=; continue; fi
   case "$a" in
-    -mmacosx-version-min=*|-stdlib=*|-Wl,-search_paths_first|-Wno-nullability-completeness) continue ;;
+    -mmacosx-version-min=*|-stdlib=*|-Wl,-search_paths_first|-Wno-nullability-completeness|-Werror=undefined-inline) continue ;;
     -arch|-isysroot|-framework) skip=1; continue ;;
   esac
   set -- "$@" "$a"
@@ -248,9 +249,10 @@ guard() {
     sh "$SHIPYARD/assert_binary_compatible.sh" "$bin"
 }
 
-case "${1:?usage: build.sh <configure-args|host-env|fetch|patch|stage-compat|configure|make|guard|all>}" in
+case "${1:?usage: build.sh <configure-args|host-env|host-compiler|fetch|patch|stage-compat|configure|make|guard|all>}" in
   configure-args) configure_args ;;
   host-env)       host_env ;;
+  host-compiler)  _write_host_compiler "${2:?usage: build.sh host-compiler OUT REAL}" "${3:?usage: build.sh host-compiler OUT REAL}" ;;
   fetch)          fetch ;;
   patch)          apply_patches ;;
   stage-compat)   stage_compat ;;
