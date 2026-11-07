@@ -27,6 +27,7 @@ if [ "$(uname -s)" = Darwin ] && [ "$(uname -r | cut -d. -f1)" = 13 ]; then
   /usr/bin/codesign --verify "$app"
 else
   rc="$(sh "$SELF/fetch-rcodesign.sh")"
+  # platform: rcodesign's own verify misreads an ad hoc signature (it has no CMS blob) and fails it; the
+  #           guest's test verifies the fixture with Apple's codesign before it runs it.
   "$rc" sign --entitlements-xml-path "$fixtures/node_sandboxed.entitlements" "$app"
-  "$rc" verify "$app/Contents/MacOS/node"
 fi
