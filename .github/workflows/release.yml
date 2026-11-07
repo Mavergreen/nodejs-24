@@ -9,7 +9,7 @@ name: release
 
 on:
   push:
-    branches: [main]
+    branches-ignore: ['renovate/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -31,9 +31,7 @@ concurrency:
 
 jobs:
   build:
-    # platform: the cross leg -- arm64 host tools, x86_64/10.9 target, no Rosetta in the build
-    #           (INGREDIENTS.md "Build and packaging"); the one pkg this repo ships comes from here.
-    runs-on: macos-26
+    runs-on: ubuntu-latest
     timeout-minutes: 355
     outputs:
       version: ${{ steps.ver.outputs.full }}
@@ -53,6 +51,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: UPSTREAM_VERSION
+
+      - name: The pkg test reads its payload with cpio
+        run: command -v cpio || { sudo apt-get update -qq && sudo apt-get install -y -qq cpio; }
 
       # spec: build/paths.sh -- all build outputs derive from this local directory.
       - name: Build out of tree
@@ -100,19 +101,6 @@ jobs:
       - name: Build node (fetch, patch, configure, make, compat guard)
         run: sh build/build.sh all
 
-      # spec: INGREDIENTS.md "Build and packaging" -- after the build, so smoke
-      #       and startup-snapshot run the built x86_64 node (under Rosetta while macos-26 has it, as
-      #       declared in rosetta:tests/lib/x86_64.sh; SKIP 77 without) instead of skipping as unbuilt.
-      - name: Tests
-        env:
-          MAVERICKS_TEST_JOBS: "1"
-        run: sh "$SHIPYARD_SCRIPTS/run-repo-tests.sh"
-
-      - name: Prepare upstream tests for Mavericks
-        run: HOST_NODE="$(command -v node)" sh build/prepare-vm-tests.sh
-
-      # spec: tests/updater-test.sh -- it rebuilds the updater at -mavericks.N+1 in the same build dir,
-      #       and package.sh refuses an updater that is not this build's version, so this comes after.
       - name: Build the Sparkle updater
         run: sh build/updater.sh
 
@@ -127,6 +115,13 @@ jobs:
           mkdir -p dist
           cp "$pkg" "${pkg%/*}"/build-info-*.txt dist/
           ls -l dist
+
+      # spec: tests/lib/x86_64.sh -- what executes the shipped x86_64 node skips here and runs in on-mavericks.
+      - name: Every host-agnostic test runs, and none skips
+        run: sh "$SHIPYARD_SCRIPTS/run-repo-tests.sh" --strict-host
+
+      - name: Prepare upstream tests for Mavericks
+        run: HOST_NODE="$(command -v node)" sh build/prepare-vm-tests.sh
 
       - name: Release notes
         env:
@@ -144,6 +139,12 @@ jobs:
           set -eu
           digest="$(sh "$SHIPYARD_SCRIPTS/release-state.sh")"
           sh "$SHIPYARD_SCRIPTS/release-state-record.sh" --notes-file dist/RELEASE_NOTES.md --digest "$digest"
+
+      - name: clang22's Mach-O readers, for the steps that read the pkg
+        run: |
+          set -eu
+          CL="$(sh build/fetch-clang22.sh)"
+          { echo "LIPO=$CL/bin/llvm-lipo"; echo "OTOOL=$CL/bin/llvm-otool"; echo "NM=$CL/bin/llvm-nm"; echo "STRINGS=$CL/bin/llvm-strings"; } >> "$GITHUB_ENV"
 
       - name: Sign the pkg and write its feed
         if: steps.ver.outputs.release == 'yes'
@@ -176,6 +177,8 @@ jobs:
 
       - name: The feed is an upgrade on this line
         if: steps.ver.outputs.release == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           sh "$SHIPYARD_SCRIPTS/assert_appcast_upgradeable.sh" \
             --appcast "dist/${{ steps.ver.outputs.product }}.xml" --version "${{ steps.ver.outputs.full }}"
@@ -251,3 +254,20 @@ jobs:
     permissions: { contents: write }
     uses: Mavergreen/shipyard/.github/workflows/publish-release.yml@v1
     with: { version: "${{ needs.build.outputs.version }}", artifact: mavergreen-nodejs }
+
+  retry:
+    needs: [build, publish]
+    if: always() && needs.publish.result == 'failure'
+    permissions: { contents: read, actions: write }
+    uses: Mavergreen/shipyard/.github/workflows/retry-release.yml@v1
+    with: { version: "${{ needs.build.outputs.version }}" }
+
+  required:
+    name: required (release)
+    if: always()
+    needs: [build, on-mavericks, scan, publish, retry]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Mavergreen/shipyard/.github/actions/required-gate@v1
+        with:
+          needs: ${{ toJSON(needs) }}
