@@ -34,3 +34,7 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
   use `/dev/null` when App Sandbox denies reading `/`. Keeps the upstream
   chroot-without-`/dev/null` behavior from libuv#4689. This changes libuv's choice
   of an unused descriptor, not system API semantics or sandbox permissions.
+- 0012-linux-host-toolset.patch: lets a cross build run on a Linux host. With `host_os=linux`
+  (`build.sh host-env` sets it through GYP_DEFINES) gyp's host toolset gets libuv's and V8's Linux
+  platform sources instead of Darwin's, and gyp stops asking for Xcode or the Command Line Tools on a
+  host that has neither. The target toolset, and any Mac host, are unchanged.

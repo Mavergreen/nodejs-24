@@ -20,15 +20,14 @@
     },
     {
       "customType": "regex",
-      "description": "Track the mavericks-clang toolchain every Node binary is compiled with. VERSION is the entire pin -- build/fetch-toolchain.sh reads the per-variant checksums from that release's own SHA256SUMS -- so this one-line bump is self-consistent and can ride the green gate. Uncapped on purpose: this is not a Node line, and a new LLVM major is a toolchain the product should follow.",
+      "description": "The clang22 toolchain every Node binary is compiled with: a Mavergreen/clang-22 release tag, bare. The pins bot writes the Linux archive's digest (components/clang22/linux-sha256) on Renovate's branch. Uncapped on purpose: this is not a Node line.",
       "managerFilePatterns": [
-        "/^components/toolchain/version$/"
+        "/^components/clang22/version$/"
       ],
       "matchStrings": [
-        "\\nVERSION=(?<currentValue>[^\\s]+)"
+        "^(?<currentValue>\\S+)\\s*$"
       ],
-      "depNameTemplate": "mavericks-clang",
-      "packageNameTemplate": "Mavergreen/clang-22",
+      "depNameTemplate": "Mavergreen/clang-22",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-mavericks\\.(?<build>\\d+)$"
     },
@@ -45,6 +44,20 @@
       "packageNameTemplate": "Mavergreen/python-315",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-mavericks\\.(?<build>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "rcodesign signs the 10.9 guest's sandbox test fixture; CI only. Verified against the release's own SHA256SUMS, so a bump moves only this version.",
+      "managerFilePatterns": [
+        "/^components/rcodesign/version$/"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>\\S+)\\s*$"
+      ],
+      "depNameTemplate": "rcodesign",
+      "packageNameTemplate": "indygreg/apple-platform-rs",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^apple-codesign/(?<version>.+)$"
     }
   ],
   "packageRules": [
@@ -55,5 +68,8 @@
       ],
       "allowedVersions": "<25"
     }
+  ],
+  "gitIgnoredAuthors": [
+    "342268518+mavergreen-pins-bot[bot]@users.noreply.github.com"
   ]
 }

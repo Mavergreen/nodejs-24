@@ -1,6 +1,6 @@
 name: repackage-on-ingredient-bump
 
-# When Renovate bumps the mavericks-clang pin, the Node binaries change even though Node itself did
+# When Renovate bumps the clang22 pin, the Node binaries change even though Node itself did
 # not — so every line needs re-cutting as -mavericks.(N+1). This dispatches release.yml's
 # workflow_dispatch local_release path via the shared reusable workflow (a dispatch, not a pushed tag:
 # a GITHUB_TOKEN-pushed tag cannot trigger release.yml).
@@ -17,7 +17,7 @@ on:
   push:
     branches: [main]
     paths:
-      - components/toolchain/version    # the mavericks-clang pin (VERSION)
+      - components/clang22/version
 
 jobs:
   repackage:

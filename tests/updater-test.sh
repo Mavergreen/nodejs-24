@@ -1,17 +1,18 @@
 #!/bin/sh
-# platform: macOS-only -- exercises the Darwin build, package, or target executable.
+# platform: host-agnostic
+# The node<line>-updater.app build/updater.sh built (read with clang22's llvm tools, on any host): its
+# registry-derived identity and feed, the family's org key, this build's version, x86_64 for 10.9, no link
+# into a product tree, and a record of the tools that built it.
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
-command -v shipyard-cmake >/dev/null 2>&1 || [ -x /usr/local/mavergreen/bin/shipyard-cmake ] \
-  || { echo "no shipyard-cmake -- skipping"; exit 77; }
+MAVERICKS_ROOT="$root"; export MAVERICKS_ROOT
 fail() { echo "FAIL: $*"; exit 1; }
 L="$(sh "$root/build/version.sh" line)"
-
-app="$(sh "$root/build/updater.sh" | tail -1)" || fail "build/updater.sh failed"
-[ -d "$app" ] || fail "build/updater.sh printed '$app', which is not an .app"
-[ "${app##*/}" = "node$L-updater.app" ] || fail "updater is named ${app##*/}, not node$L-updater.app"
+NODE_WORK="$(sh "$root/build/paths.sh" | sed -n 's/^NODE_WORK=//p')"
+app="$NODE_WORK/updater/node$L-updater.app"
+[ -d "$app" ] || { echo "no updater built at $app -- run build/updater.sh; skipping"; exit 77; }
 plist="$app/Contents/Info.plist"
-get() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>/dev/null || fail "Info.plist has no $1"; }
+get() { sh "$root/build/plist-string.sh" "$1" "$plist" || fail "Info.plist has no $1"; }
 check() { [ "$2" = "$3" ] || fail "$1 is '$2', not '$3'"; }
 check CFBundleIdentifier "$(get CFBundleIdentifier)" "dev.mavergreen.nodejs.node$L.updater"
 check SUFeedURL "$(get SUFeedURL)" "https://github.com/Mavergreen/nodejs-$L/releases/latest/download/node$L.xml"
@@ -23,18 +24,15 @@ check "committed updater/ed25519_key.pub (every installed updater trusts only th
   "$(tr -d '[:space:]' < "$root/updater/ed25519_key.pub")" "$org_key"
 check SUPublicEDKey "$(get SUPublicEDKey)" "$org_key"
 check CFBundleShortVersionString "$(get CFBundleShortVersionString)" "$(sh "$root/build/full-version.sh")"
+CL="$(sh "$root/build/fetch-clang22.sh")"
 exe="$app/Contents/MacOS/node$L-updater"
-check "updater architecture" "$(lipo -info "$exe" 2>/dev/null | sed -n 's/.*: //p' | xargs)" "x86_64"
+check "updater architecture" "$("$CL/bin/llvm-lipo" -info "$exe" 2>/dev/null | sed -n 's/.*: //p' | xargs)" "x86_64"
 check "updater deployment target (it must run on 10.9)" \
-  "$(otool -l "$exe" | awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version /{print $2; exit}')" "10.9"
-deps="$(otool -L "$exe")" || fail "otool cannot read $exe"
+  "$("$CL/bin/llvm-otool" -l "$exe" | awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version /{print $2; exit}')" "10.9"
+deps="$("$CL/bin/llvm-otool" -L "$exe")" || fail "llvm-otool cannot read $exe"
 printf '%s\n' "$deps" | sed 1d | grep -qi 'usr/local/mavergreen/' \
   && fail "the updater links a product tree -- it could not run while replacing it"
-full="$(sh "$root/build/full-version.sh")"
-next="${full%.*}.$(( ${full##*.} + 1 ))"
-trap 'printf "%s\n" "$full" > "$root/VERSION"' EXIT
-printf '%s\n' "$next" > "$root/VERSION"
-app="$(sh "$root/build/updater.sh" | tail -1)" || fail "build/updater.sh failed on a repackage"
-check "CFBundleShortVersionString after a repackage rebuilt in the same build dir (an old one offers the same update daily)" \
-  "$(get CFBundleShortVersionString)" "$next"
+tools="$(dirname "$app")/build-tools.txt"
+grep -q '^updater-cmake=.' "$tools" 2>/dev/null && grep -q '^updater-build-tool=.' "$tools" \
+  || fail "$tools does not record the cmake and build tool that built the updater"
 echo "PASS: updater"

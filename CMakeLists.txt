@@ -1,11 +1,13 @@
-cmake_minimum_required(VERSION 3.16)
-# Builds the Sparkle updater .app for this repo's Node.js line. Node itself is built by build/*.sh
-# (pure shell); CMake exists here ONLY for the updater, as in mavergreen-clang and mavergreen-golang.
-# Configure it through build/updater.sh, which passes NODE_FULL_VERSION from build/full-version.sh and
-# the shipyard toolchain file (x86_64, 10.9, the pinned SDK) -- the updater runs where node runs.
+cmake_minimum_required(VERSION 3.25)
+# Builds the Sparkle updater .app for this repo's Node.js line. Node itself is built by build/*.sh; CMake
+# exists here ONLY for the updater. Configure it through build/updater.sh, which passes NODE_FULL_VERSION
+# from build/full-version.sh, clang22 and the shipyard toolchain file (x86_64, 10.9, the pinned SDK).
+set(CMAKE_OSX_DEPLOYMENT_TARGET 10.9 CACHE STRING "")
+set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING "")
 project(NodeUpdater LANGUAGES OBJC)
 
 find_package(MavericksShipyard REQUIRED)
+set(MAVERICKS_REQUIRE_APPLECLANG OFF)
 include(Mavericks)
 include(MavericksSparkle)
 

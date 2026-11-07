@@ -7,7 +7,9 @@ A Node *major* is a product; this repo ships exactly ONE major, derived from the
 | Ingredient | Pinned in | Renovate | A bump does |
 |---|---|---|---|
 | Node.js (line 24) | `UPSTREAM_VERSION` | ✅ capped `github-tags` on `nodejs/node` (`<25`) | fetch+verify+build a new `24.x`, cut `24.x-mavericks.1` |
-| Toolchain | `components/toolchain/version` (`VERSION`) | ✅ `github-releases` on `Mavergreen/clang-22`, SHA256SUMS-verified | fetch+verify this host's variant of the pinned `.pkg`, rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
+| clang22 (the compiler, its libc++ and Recaulk) | `components/clang22/version`; its Linux archive's `SHA256SUMS` line in `components/clang22/linux-sha256` | ✅ `github-releases` on `Mavergreen/clang-22`; the pins bot (`.github/workflows/pins-bot.yml`) writes `linux-sha256` on Renovate's branch | fetch+verify this host's clang22 (the Linux archive, the cross pkg on a modern Mac, the native pkg on 10.9), rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
+| rcodesign (apple-codesign) | `components/rcodesign/version` | ✅ `github-releases` on `indygreg/apple-platform-rs`, verified against that release's `SHA256SUMS` | CI only: signs the guest's sandbox test fixture (`build/prepare-sandbox-fixture.sh`), never the product; does not trigger repackaging |
+| Linux host make, C and C++ compilers, and CMake | the runner image (`ubuntu-latest`) | ❌ **untrackable**: runner-provided and unpinned; each release records them in `build-info-cross.txt` (`build-make`, `build-host-cc`, `build-host-cxx`, `updater-cmake`, `updater-build-tool`) | a runner image bump changes them with no commit; they build only the host tools (which generate code and data the build checks) and configure the updater. Exit: a pinned toolchain for Linux hosts, which shipyard's queue tracks |
 | Acceptance-test Python | `components/test-python/version` | ✅ `github-releases` on `Mavergreen/python-315` | CI only; runs upstream tests in the Mavericks VM, does not trigger repackaging |
 | shipyard | `.github/workflows/*.yml` `uses: …@v1` | ✅ built-in github-actions manager | pulls new shared scripts/gate; does not change the node binary |
 | GitHub Actions | `.github/workflows/*.yml` `uses:` | ✅ built-in github-actions manager | CI-only; does not change the node binary |
@@ -20,12 +22,16 @@ Node's bundled dependencies (V8, libuv, ICU, npm, nghttp2, …) ride inside the 
 ## Build and packaging
 
 `sh build/build.sh all` builds an `x86_64-apple-macos10.9` `node` natively on a real 10.9 box and as a
-cross build on an Apple-Silicon host. The toolchain is mavericks-clang, and `build/fetch-toolchain.sh`
-picks its variant from the build MODE. A cross build additionally needs Node's `--dest-cpu=x64
---dest-os=mac --cross-compiling`. gyp then builds the tools that run during the build (torque,
-mksnapshot, node_js2c, the ICU generators) in a separate host toolset, as native arm64 with Apple's
-clang (`CC_host`/`CXX_host` from `build.sh host-env`) against the build machine's SDK. **No step of
-either build runs under Rosetta.** The compatibility guard checks the target binary's floor and imports. The release workflow then
+cross build on Linux (the release build) or a modern Mac. The compiler is clang22 on every host
+(`build/fetch-clang22.sh`: the Linux archive, the cross pkg on a modern Mac, the native pkg on 10.9), and
+its `llvm-*` tools archive, read and strip Mach-O everywhere. A cross build additionally needs Node's
+`--dest-cpu=x64 --dest-os=mac --cross-compiling`. gyp then builds the tools that run during the build
+(torque, mksnapshot, node_js2c, the ICU generators) in a separate host toolset, for the build machine
+(`CC_host`/`CXX_host` from `build.sh host-env`). On Linux that is the runner's compiler, given libuv's
+and V8's Linux platform sources (`patches/0012-linux-host-toolset.patch`) and linked with clang22's
+`ld.lld`; on an Apple Silicon Mac it is Apple's clang (a deviation, below). V8's `mksnapshot` does not
+execute target code, so the snapshot it writes does not depend on the build machine. **No step of either
+build runs under Rosetta.** The compatibility guard checks the target binary's floor and imports. The release workflow then
 installs its own pkg in a stock Mavericks VM and checks the installed version, wrappers and startup
 snapshot. It runs the matching upstream JavaScript suites, stress tests, compiled addon/Node-API/SQLite
 fixtures, embedding tests, benchmark smoke tests and C++ tests against the installed Node. Python for
@@ -43,12 +49,11 @@ integer keys. Remove the patch when the bundled V8 includes the fix.
 There is no committed version-specific fingerprint to bless after each upstream update. Runtime
 acceptance tests the current artifact on its target OS, and publish waits for that job. The VM job also
 runs this repo's suite through shipyard; tests needing developer tools may skip there, while the
-explicit installed-product and upstream checks must succeed. Host tests run serially because the
-updater repackage test temporarily changes VERSION and shares the updater build directory.
+explicit installed-product and upstream checks must succeed.
 
 Both builds configure `--without-node-snapshot`. Node's startup snapshot is made by running Node's
-bootstrap as target-arch code, and V8 has no x64 simulator, so an arm64 host could only make it under
-Rosetta. Node's configure already drops it when cross-compiling, so the native build drops it too, or
+bootstrap as target code, so only an x86_64 Mac could make it, and the release build runs on Linux.
+Node's configure already drops it when cross-compiling, so the native build drops it too, or
 the two builds would differ. The snapshot is generated on the target instead. The pkg ships
 `libexec/mavergreen/build-startup-snapshot`, and its postinstall runs it: best-effort, and only when
 installing to the boot volume. It writes `lib/node/startup.blob` with `node --build-snapshot`, and
@@ -102,11 +107,11 @@ by a manual `local_release` dispatch), and a key change is a deliberate bridge r
 reconcile.
 
 - upstream: UPSTREAM_VERSION
-- clang: components/toolchain/version:VERSION
+- clang: components/clang22/version
 
 ## Conformance deviations
 
-- rosetta:tests/lib/x86_64.sh: runs the shipped x86_64 node under `arch -x86_64` when Rosetta is installed, and SKIPs otherwise, so smoke and startup-snapshot also exercise the 10.9-targeted binary on Apple-Silicon hosts and CI. Best-effort test coverage, never a build dependency: the build itself uses no Rosetta. The required Mavericks VM job runs these checks natively; Rosetta retains additional host-side feedback where available.
+- apple-clang:build/build.sh: a cross build on an Apple Silicon Mac compiles gyp's host toolset (torque, mksnapshot and the other build-time generators, never anything that ships) with Apple's clang and the Mac's own SDK, found through xcrun. clang22 cannot yet: it ships a C++ runtime for x86_64 10.9 only, and V8's host tools need a C++20 runtime for arm64. The release build runs on Linux and uses no Apple tool. Exit: clang22 (or the family's own distribution) shipping an arm64 host C++ runtime.
 - on-target:upstream-specialized: upstream internet, documentation-tool, tick-processor and V8-maintenance suites are outside the runtime gate, as are documentation-generated addon examples. Revisit when adding coverage for those facilities; failures in the selected runtime suites are never suppressed.
 - on-target:updater-ui: package installation and updater registration are covered, but interactive Sparkle UI is not exercised in the headless VM. Revisit with an automated GUI acceptance harness.
 

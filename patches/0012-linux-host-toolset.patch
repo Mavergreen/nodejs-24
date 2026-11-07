@@ -1,0 +1,68 @@
+--- a/deps/uv/uv.gyp
++++ b/deps/uv/uv.gyp
+@@ -1,5 +1,6 @@
+ {
+   'variables': {
++    'host_os%': '<(OS)',
+     'conditions': [
+       ['OS=="win"', {
+         'shared_unix_defines': [ ],
+@@ -269,7 +270,7 @@
+             '-fno-strict-aliasing',
+           ],
+         }],
+-        [ 'OS in "mac ios"', {
++        [ 'OS in "mac ios" and not (_toolset=="host" and host_os=="linux")', {
+           'sources': [
+             '<@(uv_sources_apple)',
+           ],
+@@ -391,7 +392,13 @@
+             'src/unix/bsd-proctitle.c'
+           ],
+         }],
+-        [ 'OS in "ios mac freebsd dragonflybsd openbsd netbsd".split()', {
++        [ 'OS=="mac" and _toolset=="host" and host_os=="linux"', {
++          'defines': [ '_GNU_SOURCE' ],
++          'sources': [
++            '<@(uv_sources_linux)',
++          ],
++        }],
++        [ 'OS in "ios mac freebsd dragonflybsd openbsd netbsd".split() and not (_toolset=="host" and host_os=="linux")', {
+           'sources': [
+             '<@(uv_sources_bsd_common)',
+           ],
+--- a/tools/gyp/pylib/gyp/xcode_emulation.py
++++ b/tools/gyp/pylib/gyp/xcode_emulation.py
+@@ -1509,7 +1509,9 @@
+         # Xcode not installed so look for XCode Command Line Tools
+         version = CLTVersion()  # macOS Catalina returns 11.0.0.0.1.1567737322
+         if not version:
+-            raise GypError("No Xcode or CLT version detected!")
++            if sys.platform == "darwin":
++                raise GypError("No Xcode or CLT version detected!")
++            version = "0"
+     # Be careful to convert "4.2.3" to "0423" and "11.0.0" to "1100":
+     version = version.split(".")[:3]  # Just major, minor, micro
+     version[0] = version[0].zfill(2)  # Add a leading zero if major is one digit
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1507,12 +1507,18 @@
+             '<(V8_ROOT)/src/base/platform/platform-fuchsia.cc',
+           ]
+         }],
+-        ['OS == "mac" or (_toolset=="host" and host_os=="mac")', {
++        ['(OS == "mac" and not (_toolset=="host" and host_os=="linux")) or (_toolset=="host" and host_os=="mac")', {
+           'sources': [
+             '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+             '<(V8_ROOT)/src/base/platform/platform-darwin.cc',
+           ]
+         }],
++        ['OS == "mac" and _toolset=="host" and host_os=="linux"', {
++          'sources': [
++            '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
++            '<(V8_ROOT)/src/base/platform/platform-linux.cc',
++          ]
++        }],
+         ['OS == "ios"', {
+           'sources': [
+             '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',

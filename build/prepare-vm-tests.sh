@@ -1,5 +1,8 @@
 #!/bin/sh
-# platform: macOS-only -- cross-compiles Node's native test fixtures for the stock 10.9 guest.
+# platform: host-agnostic
+#   usage: HOST_NODE=<native node> sh build/prepare-vm-tests.sh
+#          Cross-compiles Node's native test fixtures for the stock 10.9 guest and bundles them, with the
+#          upstream test tree, cctest, embedtest and a signed sandbox fixture, as $NODE_WORK/node-vm-tests.tar.gz.
 set -eu
 SELF="$(cd "$(dirname "$0")" && pwd)"
 MAVERICKS_ROOT="$(cd "$SELF/.." && pwd)"; export MAVERICKS_ROOT
@@ -14,7 +17,15 @@ NODE_SRC="$SRC"; export NODE_SRC
 cd "$SRC"
 # platform: upstream build_addons.py executes OUT/node to drive node-gyp; that must be host code.
 mkdir -p "$NODE_WORK/addon-host"
-printf '#!/bin/sh\nexec "%s" "$@" --arch=x64\n' "$HOST_NODE" > "$NODE_WORK/addon-host/node"
+if [ "$(uname -s)" = Darwin ]; then
+  printf '#!/bin/sh\nexec "%s" "$@" --arch=x64\n' "$HOST_NODE" > "$NODE_WORK/addon-host/node"
+else
+  # platform: node-gyp generates for the host's own flavor unless its configure is handed a format, and
+  #           only gyp's mac flavor builds a Mach-O addon (-bundle, -undefined dynamic_lookup).
+  printf '#!/bin/sh\nexec "%s" "$@" --arch=x64 -- -f make-mac\n' "$HOST_NODE" > "$NODE_WORK/addon-host/node"
+  # platform: gyp's mac flavor asks Xcode for its default architectures unless told the build is a cross build.
+  GYP_CROSSCOMPILE=1; export GYP_CROSSCOMPILE
+fi
 chmod +x "$NODE_WORK/addon-host/node"
 headers="$NODE_WORK/addon-headers"
 python3 tools/install.py install --headers-only --dest-dir "$headers" --prefix /
@@ -26,10 +37,10 @@ for suite in test/addons test/js-native-api test/node-api test/sqlite benchmark/
   python3 tools/build_addons.py --headers-dir "$headers" \
     --out-dir "$NODE_WORK/addon-host" --loglevel info "$suite"
 done
-# platform: only target executables enter the guest; gyp's arm64 generator tools remain on the host.
+# platform: only target executables enter the guest; gyp's host-toolset generators stay on the build host.
 for binary in cctest embedtest; do
   [ -x "out/Release/$binary" ]
-  [ "$(lipo -info "out/Release/$binary" | sed -n 's/.*: //p' | xargs)" = x86_64 ]
+  [ "$("$TCP/bin/llvm-lipo" -info "out/Release/$binary" | sed -n 's/.*: //p' | xargs)" = x86_64 ]
 done
 bundle="$NODE_WORK/vm-tests"
 rm -rf "$bundle"; mkdir -p "$bundle/out/Release"
@@ -39,7 +50,6 @@ LC_ALL=en_US.UTF-8 tar --exclude='./out' --exclude='./.git' -cf "$NODE_WORK/vm-s
 LC_ALL=en_US.UTF-8 tar -xf "$NODE_WORK/vm-source.tar" -C "$bundle"
 rm "$NODE_WORK/vm-source.tar"
 cp out/Release/cctest out/Release/embedtest "$bundle/out/Release/"
-# platform: stock Mavericks can verify signatures but has no developer-tools signing allocator.
 sh "$SELF/prepare-sandbox-fixture.sh" "$SRC/out/Release/node" \
   "$SRC/test/fixtures/macos-app-sandbox" "$bundle/out/Release/macos-sandbox"
 # platform: tests use both process.execPath and out/Release/node; both must resolve the installed pkg.

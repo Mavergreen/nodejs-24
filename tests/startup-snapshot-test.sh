@@ -15,13 +15,13 @@ cp "$BIN" "$p/bin/node"
 cp "$root/build/startup-snapshot.sh" "$p/libexec/mavergreen/build-startup-snapshot"
 blob="$p/lib/node/startup.blob"
 
-x86_64_run /bin/sh "$p/libexec/mavergreen/build-startup-snapshot" \
+/bin/sh "$p/libexec/mavergreen/build-startup-snapshot" \
   || fail "build-startup-snapshot failed"
 [ -s "$blob" ] || fail "build-startup-snapshot wrote no $blob"
 
 loads() {  # $1 = label; rest = node args. Succeeds when node ran AND deserialized a startup snapshot.
   _label="$1"; shift
-  _out="$(NODE_DEBUG_NATIVE=SNAPSHOT_SERDES x86_64_run "$@" -e 'console.log("ran")' 2>"$x/err")" \
+  _out="$(NODE_DEBUG_NATIVE=SNAPSHOT_SERDES "$@" -e 'console.log("ran")' 2>"$x/err")" \
     || fail "$_label: node failed to start -- a default snapshot must never stop node: $(cat "$x/err")"
   [ "$_out" = ran ] || fail "$_label: node did not run the script (got '$_out')"
   grep -q 'SnapshotData::FromBlob() read [0-9]* bytes' "$x/err"

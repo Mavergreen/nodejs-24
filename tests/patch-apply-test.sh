@@ -1,5 +1,5 @@
 #!/bin/sh
-# platform: macOS-only -- exercises the Darwin build, package, or target executable.
+# platform: host-agnostic
 # Proves the extracted patches + fixups apply cleanly to the pinned Node source. No compiler.
 # Uses a throwaway local work dir; SKIPs (77) when offline.
 set -eu
