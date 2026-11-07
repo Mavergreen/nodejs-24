@@ -4,7 +4,8 @@
 #          Reads the pkg with stevedore and cpio, as any host can: a full Node install in its mavergreen tree
 #          whose node is byte-identical to the built one, the manifest the helper links by, the pinned npm
 #          wrappers, the updater and its LaunchAgent, the npm-globals and startup-snapshot hooks, and a
-#          build-info that names the tools that built what ships. Then it checks artifact conformance.
+#          build-info that names the tools that built what ships. Then it checks artifact conformance, reading
+#          Mach-O with clang22's llvm tools on any host.
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
 MAVERICKS_ROOT="$root"; export MAVERICKS_ROOT
@@ -17,6 +18,9 @@ set -- "$NODE_WORK"/dist/nodejs-*.pkg
 [ -f "$1" ] || { echo "not packaged (no $NODE_WORK/dist/nodejs-*.pkg) -- run build/build.sh all, build/updater.sh, build/package.sh pkg; skipping"; exit 77; }
 [ "$#" -eq 1 ] || fail "$NODE_WORK/dist holds $# nodejs pkgs; one packaging makes one"
 pkg="$1"
+CL="$(sh "$root/build/fetch-clang22.sh")"
+LIPO="$CL/bin/llvm-lipo"; OTOOL="$CL/bin/llvm-otool"; NM="$CL/bin/llvm-nm"; STRINGS="$CL/bin/llvm-strings"
+export LIPO OTOOL NM STRINGS
 L="$(sh "$root/build/version.sh" line)"
 T="usr/local/mavergreen/node$L"
 x="$(mktemp -d "${TMPDIR:-/tmp}/package-pkg-test.XXXXXX")"; trap 'rm -rf "$x"' EXIT
