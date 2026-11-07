@@ -27,8 +27,8 @@ else
   # platform: gyp's mac flavor asks Xcode for its default architectures unless told the build is a cross build.
   GYP_CROSSCOMPILE=1; export GYP_CROSSCOMPILE
   # platform: node-gyp's own gyp also asks for Xcode's version, which a Linux host cannot answer.
-  sh "$SELF/node-gyp-host.sh" "$SRC" "$NODE_WORK/node-gyp-host"
-  set -- --node-gyp "$NODE_WORK/node-gyp-host/bin/node-gyp.js"
+  sh "$SELF/node-gyp-host.sh" "$SRC" "$NODE_WORK/npm-host"
+  set -- --node-gyp "$NODE_WORK/npm-host/node_modules/node-gyp/bin/node-gyp.js"
 fi
 chmod +x "$NODE_WORK/addon-host/node"
 headers="$NODE_WORK/addon-headers"
