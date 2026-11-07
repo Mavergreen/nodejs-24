@@ -17,6 +17,7 @@ NODE_SRC="$SRC"; export NODE_SRC
 cd "$SRC"
 # platform: upstream build_addons.py executes OUT/node to drive node-gyp; that must be host code.
 mkdir -p "$NODE_WORK/addon-host"
+set --
 if [ "$(uname -s)" = Darwin ]; then
   printf '#!/bin/sh\nexec "%s" "$@" --arch=x64\n' "$HOST_NODE" > "$NODE_WORK/addon-host/node"
 else
@@ -25,6 +26,9 @@ else
   printf '#!/bin/sh\nexec "%s" "$@" --arch=x64 -- -f make-mac\n' "$HOST_NODE" > "$NODE_WORK/addon-host/node"
   # platform: gyp's mac flavor asks Xcode for its default architectures unless told the build is a cross build.
   GYP_CROSSCOMPILE=1; export GYP_CROSSCOMPILE
+  # platform: node-gyp's own gyp also asks for Xcode's version, which a Linux host cannot answer.
+  sh "$SELF/node-gyp-host.sh" "$SRC" "$NODE_WORK/node-gyp-host"
+  set -- --node-gyp "$NODE_WORK/node-gyp-host/bin/node-gyp.js"
 fi
 chmod +x "$NODE_WORK/addon-host/node"
 headers="$NODE_WORK/addon-headers"
@@ -35,7 +39,7 @@ PATH="$NODE_WORK/build-tools:$PATH"; export PATH
 LDFLAGS="$SRC/deps/mavericks-compat/polyfills.o"; export LDFLAGS
 for suite in test/addons test/js-native-api test/node-api test/sqlite benchmark/napi; do
   python3 tools/build_addons.py --headers-dir "$headers" \
-    --out-dir "$NODE_WORK/addon-host" --loglevel info "$suite"
+    --out-dir "$NODE_WORK/addon-host" --loglevel info "$@" "$suite"
 done
 # platform: only target executables enter the guest; gyp's host-toolset generators stay on the build host.
 for binary in cctest embedtest; do

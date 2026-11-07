@@ -20,4 +20,11 @@ grep -q "void\* qos_override" "$SRC/deps/v8/src/heap/safepoint.h" || { echo "FAI
 grep -q "'10.9'" "$SRC/common.gypi" || { echo "FAIL: common.gypi target fixup missing"; exit 1; }
 grep -q '^command -v python3\.15 .*exec python3\.15 ' "$SRC/configure" || { echo "FAIL: configure Python 3.15 selection missing"; exit 1; }
 grep -q '^acceptable_pythons = ((3, 15), (3, 14),' "$SRC/configure" || { echo "FAIL: configure Python 3.15 support missing"; exit 1; }
+sh "$root/build/node-gyp-host.sh" "$SRC" "$NODE_WORK/node-gyp-host" >/dev/null \
+  || { echo "FAIL: build/node-gyp-host.sh could not give node-gyp's own gyp the Linux-host fix"; exit 1; }
+x=gyp/pylib/gyp/xcode_emulation.py
+grep -q 'if sys.platform == "darwin":' "$NODE_WORK/node-gyp-host/$x" \
+  || { echo "FAIL: the host-only node-gyp copy still requires Xcode off macOS"; exit 1; }
+grep -q 'if sys.platform == "darwin":' "$SRC/deps/npm/node_modules/node-gyp/$x" \
+  && { echo "FAIL: the node-gyp that ships inside npm was changed"; exit 1; }
 echo "PASS: patch-apply"
