@@ -91,7 +91,10 @@ _build_tools_shim() {
   ln -sf "$TCP/bin/llvm-install-name-tool" "$SHIM/install_name_tool"
   if [ "$MODE" = cross ] && [ "$HOST_OS" = Linux ]; then
     lcxx="$(sh "$SELF/host-libcxx.sh" "$TCP")"
-    linux="--no-default-config --target=x86_64-unknown-linux-gnu -rtlib=libgcc --unwindlib=libgcc"
+    # platform: clang targets core2 for x86_64 macOS but plain x86-64 for Linux, and V8's mksnapshot picks
+    #           code for some builtins by the host compiler's macros (__SSE3__ for ArrayIncludes/IndexOf's SIMD
+    #           path), so the Linux host compiles for core2 and takes the paths a Mac host takes.
+    linux="--no-default-config --target=x86_64-unknown-linux-gnu -march=core2 -rtlib=libgcc --unwindlib=libgcc"
     _write_host_compiler "$SHIM/host-cc" "$TCP/bin/clang" "$linux"
     _write_host_compiler "$SHIM/host-c++" "$TCP/bin/clang++" "$linux -nostdinc++ -isystem $lcxx/include/c++/v1" \
       "-nostdlib++ $lcxx/lib/libc++.a -lpthread"
