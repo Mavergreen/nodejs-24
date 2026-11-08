@@ -3,7 +3,8 @@
 # The V8 a configured tree builds has the features a native 10.9 build has, whatever the build host: Node's
 # configure picks wasm SIMD256 revectorization by the HOST's platform (on for any non-macOS host), which
 # patches/0012-linux-host-toolset.patch makes the target's; and mksnapshot picks some builtins' code by the host
-# compiler's __SSE3__, which a Mac host defines and a Linux host-cc must too, so a Linux-built node matches.
+# compiler's __SSE3__, which a Mac host defines and a Linux host-cc must too; and V8's heap must confine its
+# mmap hints for a macOS target on any host, since mksnapshot writes those addresses into the snapshot.
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"; root="$(cd "$here/.." && pwd)"
 SRC="$(sh "$root/build/paths.sh" | sed -n 's/^SRC=//p')"
@@ -13,6 +14,8 @@ if grep -Eq "[\"']v8_enable_wasm_simd256_revec[\"']: 1" "$SRC/config.gypi"; then
 fi
 grep -Eq "[\"']target_arch[\"']: [\"']x64[\"']" "$SRC/config.gypi" \
   || { echo "FAIL: $SRC/config.gypi does not describe an x64 target"; exit 1; }
+grep -q '^#if V8_OS_DARWIN || defined(V8_TARGET_OS_MACOS)$' "$SRC/deps/v8/src/heap/heap.h" \
+  || { echo "FAIL: $SRC's V8 heap confines its mmap hints only on a Darwin host, so a Linux-built mksnapshot writes other heap addresses into the startup snapshot"; exit 1; }
 hcc="$(sh "$root/build/paths.sh" | sed -n 's/^NODE_WORK=//p')/build-tools/host-cc"
 if [ -x "$hcc" ]; then
   "$hcc" -dM -E -x c /dev/null | grep -q '^#define __SSE3__ 1$' \

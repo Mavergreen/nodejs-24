@@ -77,3 +77,14 @@
          ['OS == "ios"', {
            'sources': [
              '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+--- a/deps/v8/src/heap/heap.h
++++ b/deps/v8/src/heap/heap.h
+@@ -1567,7 +1567,7 @@
+   void* GetRandomMmapAddr() {
+     void* result = v8::internal::GetRandomMmapAddr();
+ #if V8_TARGET_ARCH_X64
+-#if V8_OS_DARWIN
++#if V8_OS_DARWIN || defined(V8_TARGET_OS_MACOS)
+     // The Darwin kernel [as of macOS 10.12.5] does not clean up page
+     // directory entries [PDE] created from mmap or mach_vm_allocate, even
+     // after the region is destroyed. Using a virtual address space that is
