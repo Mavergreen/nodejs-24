@@ -1,3 +1,14 @@
+--- a/configure.py
++++ b/configure.py
+@@ -1985,7 +1985,7 @@
+     raise Exception(
+         'Only one of the --v8-enable-object-print or --v8-disable-object-print options '
+         'can be specified at a time.')
+-  if sys.platform != 'darwin':
++  if flavor != 'mac':
+     if o['variables']['v8_enable_webassembly'] and o['variables']['target_arch'] == 'x64':
+       o['variables']['v8_enable_wasm_simd256_revec'] = 1
+ 
 --- a/deps/uv/uv.gyp
 +++ b/deps/uv/uv.gyp
 @@ -1,5 +1,6 @@

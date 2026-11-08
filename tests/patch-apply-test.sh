@@ -20,6 +20,8 @@ grep -q "void\* qos_override" "$SRC/deps/v8/src/heap/safepoint.h" || { echo "FAI
 grep -q "'10.9'" "$SRC/common.gypi" || { echo "FAIL: common.gypi target fixup missing"; exit 1; }
 grep -q '^command -v python3\.15 .*exec python3\.15 ' "$SRC/configure" || { echo "FAIL: configure Python 3.15 selection missing"; exit 1; }
 grep -q '^acceptable_pythons = ((3, 15), (3, 14),' "$SRC/configure" || { echo "FAIL: configure Python 3.15 support missing"; exit 1; }
+grep -q "^  if flavor != 'mac':$" "$SRC/configure.py" \
+  || { echo "FAIL: configure.py still picks V8 features by the build host's platform"; exit 1; }
 sh "$root/build/node-gyp-host.sh" "$SRC" "$NODE_WORK/npm-host" >/dev/null \
   || { echo "FAIL: build/node-gyp-host.sh could not give node-gyp's own gyp the Linux-host fix"; exit 1; }
 x=gyp/pylib/gyp/xcode_emulation.py
