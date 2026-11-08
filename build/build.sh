@@ -10,7 +10,8 @@
 #   configure        run ./configure (needs the toolchain)
 #   make             run make (needs the toolchain); records the build tools in $NODE_WORK/build-tools.txt
 #   guard            assert the built binary is 10.9-safe
-#   host-compiler OUT REAL   write OUT, a Linux cross build's host-toolset compiler wrapping REAL
+#   host-compiler OUT REAL [FLAGS [LINK]]   write OUT, a Linux cross build's host-toolset compiler: REAL with
+#                    FLAGS, minus gyp's Darwin flags, and with -fuse-ld=lld and LINK when it links
 #   all              fetch -> patch -> stage-compat -> configure -> make -> guard
 set -eu
 SELF="$(cd "$(dirname "$0")" && pwd)"
@@ -52,19 +53,21 @@ SHIM
 }
 
 _write_host_compiler() {
-  printf '#!/bin/sh\nREAL=%s\n' "'$2'" > "$1"
+  printf '#!/bin/sh\nREAL=%s\nEXTRA=%s\nLINK=%s\n' "'$2'" "'${3:-}'" "'${4:-}'" > "$1"
   cat >> "$1" <<'SHIM'
-skip=
+skip=; link=yes
 for a do
   shift
   if [ -n "$skip" ]; then skip=; continue; fi
   case "$a" in
     -mmacosx-version-min=*|-stdlib=*|-Wl,-search_paths_first|-Wno-nullability-completeness|-Werror=undefined-inline) continue ;;
     -arch|-isysroot|-framework) skip=1; continue ;;
+    -c|-E|-S) link=no ;;
   esac
   set -- "$@" "$a"
 done
-exec "$REAL" -fuse-ld=lld "$@"
+if [ "$link" = yes ]; then exec "$REAL" $EXTRA -fuse-ld=lld "$@" $LINK; fi
+exec "$REAL" $EXTRA "$@"
 SHIM
   chmod +x "$1"
 }
@@ -74,7 +77,9 @@ SHIM
 # matched to the linker, the same on every host. The libtool shim archives with llvm-ar, which writes a
 # Darwin archive of Mach-O members and a GNU one of a Linux host tool's ELF members; frameworks link at
 # the final link through clang.cfg, never into a static archive. A cross build on Linux also gets
-# host-cc/host-c++ (see host_env). Call AFTER _toolchain: it reads $TCP.
+# host-cc/host-c++ (see host_env): clang22 itself, targeting the Linux host with libc++ built from the LLVM
+# release clang22 is (build/host-libcxx.sh), so V8's host tools are compiled as on a Mac host. Call AFTER
+# _toolchain: it reads $TCP.
 _build_tools_shim() {
   rm -rf "$SHIM"; mkdir -p "$SHIM"
   _write_libtool "$SHIM/libtool"
@@ -85,15 +90,13 @@ _build_tools_shim() {
   ln -sf "$TCP/bin/llvm-lipo"   "$SHIM/lipo"
   ln -sf "$TCP/bin/llvm-install-name-tool" "$SHIM/install_name_tool"
   if [ "$MODE" = cross ] && [ "$HOST_OS" = Linux ]; then
-    _write_host_compiler "$SHIM/host-cc" "$(_host_compiler "${NODE_HOST_CC:-cc}")"
-    _write_host_compiler "$SHIM/host-c++" "$(_host_compiler "${NODE_HOST_CXX:-c++}")"
-    ln -sf "$TCP/bin/ld.lld" "$SHIM/ld.lld"
+    lcxx="$(sh "$SELF/host-libcxx.sh" "$TCP")"
+    linux="--no-default-config --target=x86_64-unknown-linux-gnu -rtlib=libgcc --unwindlib=libgcc"
+    _write_host_compiler "$SHIM/host-cc" "$TCP/bin/clang" "$linux"
+    _write_host_compiler "$SHIM/host-c++" "$TCP/bin/clang++" "$linux -nostdinc++ -isystem $lcxx/include/c++/v1" \
+      "-nostdlib++ $lcxx/lib/libc++.a -lpthread"
   fi
   PATH="$SHIM:$PATH"; export PATH
-}
-
-_host_compiler() {
-  command -v "$1" || { echo "build.sh: no host compiler '$1' on PATH" >&2; exit 1; }
 }
 
 configure_args() {
@@ -120,7 +123,7 @@ host_env() {
     Linux)
       # spec: patches/0012-linux-host-toolset.patch -- host_os=linux gives the host toolset libuv's and
       #       V8's Linux platform sources; gyp's mac generator still emits Darwin flags for it, which
-      #       host-cc/host-c++ drop before running the runner's compiler.
+      #       host-cc/host-c++ drop before running clang22 for the Linux host.
       printf 'CC_host=%s\nCXX_host=%s\nGYP_DEFINES=host_os=linux\n' "$SHIM/host-cc" "$SHIM/host-c++" ;;
     Darwin)
       # spec: INGREDIENTS.md "Conformance deviations", apple-clang:build/build.sh -- the host toolset of a
@@ -219,6 +222,7 @@ record_build_tools() {
     if [ "$MODE" = cross ]; then
       echo "build-host-cc=$(_first_line "$(host_env | sed -n 's/^CC_host=//p')")"
       echo "build-host-cxx=$(_first_line "$(host_env | sed -n 's/^CXX_host=//p')")"
+      [ "$HOST_OS" != Linux ] || echo "build-host-libcxx=llvm-project $(awk '{ print $1 }' "$MAVERICKS_ROOT/components/clang22/llvm-project")"
     fi
   } > "$NODE_WORK/build-tools.txt"
 }
@@ -252,7 +256,7 @@ guard() {
 case "${1:?usage: build.sh <configure-args|host-env|host-compiler|fetch|patch|stage-compat|configure|make|guard|all>}" in
   configure-args) configure_args ;;
   host-env)       host_env ;;
-  host-compiler)  _write_host_compiler "${2:?usage: build.sh host-compiler OUT REAL}" "${3:?usage: build.sh host-compiler OUT REAL}" ;;
+  host-compiler)  _write_host_compiler "${2:?usage: build.sh host-compiler OUT REAL [FLAGS [LINK]]}" "${3:?usage: build.sh host-compiler OUT REAL [FLAGS [LINK]]}" "${4:-}" "${5:-}" ;;
   fetch)          fetch ;;
   patch)          apply_patches ;;
   stage-compat)   stage_compat ;;

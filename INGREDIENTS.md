@@ -9,7 +9,8 @@ A Node *major* is a product; this repo ships exactly ONE major, derived from the
 | Node.js (line 24) | `UPSTREAM_VERSION` | ✅ capped `github-tags` on `nodejs/node` (`<25`) | fetch+verify+build a new `24.x`, cut `24.x-mavericks.1` |
 | clang22 (the compiler, its libc++ and Recaulk) | `components/clang22/version`; its Linux archive's `SHA256SUMS` line in `components/clang22/linux-sha256` | ✅ `github-releases` on `Mavergreen/clang-22`; the pins bot (`.github/workflows/pins-bot.yml`) writes `linux-sha256` on Renovate's branch | fetch+verify this host's clang22 (the Linux archive, the cross pkg on a modern Mac, the native pkg on 10.9), rebuild with it, and re-cut as `-mavericks.N+1` (via `repackage-on-ingredient-bump`) |
 | rcodesign (apple-codesign) | `components/rcodesign/version` | ✅ `github-releases` on `indygreg/apple-platform-rs`, verified against that release's `SHA256SUMS` | CI only: signs the guest's sandbox test fixture (`build/prepare-sandbox-fixture.sh`), never the product; does not trigger repackaging |
-| Linux host make, C and C++ compilers, and CMake | the runner image (`ubuntu-latest`) | ❌ **untrackable**: runner-provided and unpinned; each release records them in `build-info-cross.txt` (`build-make`, `build-host-cc`, `build-host-cxx`, `updater-cmake`, `updater-build-tool`) | a runner image bump changes them with no commit; they build only the host tools (which generate code and data the build checks) and configure the updater. Exit: a pinned toolchain for Linux hosts, which shipyard's queue tracks |
+| llvm-project source (the Linux host's libc++) | `components/clang22/llvm-project` (`VERSION SHA256`, the release's own published digest) | ❌ **untrackable** by a bot: it must name the LLVM release clang22 is built from, which `build/host-libcxx.sh` and `tests/host-libcxx-pin-test.sh` enforce, so it moves by hand with a clang22 LLVM bump | a cross build on Linux builds libc++/libc++abi from it with clang22 for the host toolset (never shipped). Exit: clang22 shipping a Linux libc++ |
+| Linux host make and CMake | the runner image (`ubuntu-latest`) | ❌ **untrackable**: runner-provided and unpinned; each release records them in `build-info-cross.txt` (`build-make`, `updater-cmake`, `updater-build-tool`) | a runner image bump changes them with no commit; make drives the build, CMake configures the updater and the host libc++. Exit: a pinned toolchain for Linux hosts, which shipyard's queue tracks |
 | Acceptance-test Python | `components/test-python/version` | ✅ `github-releases` on `Mavergreen/python-315` | CI only; runs upstream tests in the Mavericks VM, does not trigger repackaging |
 | shipyard | `.github/workflows/*.yml` `uses: …@v1` | ✅ built-in github-actions manager | pulls new shared scripts/gate; does not change the node binary |
 | GitHub Actions | `.github/workflows/*.yml` `uses:` | ✅ built-in github-actions manager | CI-only; does not change the node binary |
@@ -27,9 +28,10 @@ cross build on Linux (the release build) or a modern Mac. The compiler is clang2
 its `llvm-*` tools archive, read and strip Mach-O everywhere. A cross build additionally needs Node's
 `--dest-cpu=x64 --dest-os=mac --cross-compiling`. gyp then builds the tools that run during the build
 (torque, mksnapshot, node_js2c, the ICU generators) in a separate host toolset, for the build machine
-(`CC_host`/`CXX_host` from `build.sh host-env`). On Linux that is the runner's compiler, given libuv's
-and V8's Linux platform sources (`patches/0012-linux-host-toolset.patch`) and linked with clang22's
-`ld.lld`; on an Apple Silicon Mac it is Apple's clang (a deviation, below). V8's `mksnapshot` does not
+(`CC_host`/`CXX_host` from `build.sh host-env`). On Linux that is clang22 itself targeting the Linux host,
+with libc++ built from the LLVM release clang22 is (`build/host-libcxx.sh`), libuv's and V8's Linux platform
+sources (`patches/0012-linux-host-toolset.patch`) and clang22's `ld.lld`; on an Apple Silicon Mac it is
+Apple's clang (a deviation, below). V8's `mksnapshot` does not
 execute target code, so the snapshot it writes does not depend on the build machine. **No step of either
 build runs under Rosetta.** The compatibility guard checks the target binary's floor and imports. The release workflow then
 installs its own pkg in a stock Mavericks VM and checks the installed version, wrappers and startup
