@@ -3,6 +3,7 @@
 # build/updater.sh links the updater with clang22's ld64.lld, named by --ld-path, on every host (driven
 # through stub cmake and clang22 prefixes, so nothing is compiled).
 set -eu
+unset NODE_WORK
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1"; exit 1; }
 t="$(mktemp -d "${TMPDIR:-/tmp}/node-updater-link.XXXXXX")"; trap 'rm -rf "$t"' EXIT INT TERM
@@ -28,6 +29,7 @@ V="$(cat "$ROOT/UPSTREAM_VERSION")"; L="${V%%.*}"; printf '%s-mavericks.1\n' "$V
 printf '<plist><dict><key>CFBundleShortVersionString</key><string>%s-mavericks.1</string></dict></plist>\n' "$V" > "$t/info.plist"
 PATH="$t/bin:$PATH" APP="node$L-updater.app" ARGS="$t/args" INFO="$t/info.plist" MAVERICKS_BUILD_ROOT="$t/w" \
   sh "$t/repo/build/updater.sh" >/dev/null || fail "updater.sh failed"
+[ -d "$t/w/nodejs/updater" ] || fail "updater.sh must build under this test's own build root, never a caller's NODE_WORK"
 A="$t/args-updater"
 [ -f "$A" ] || fail "updater.sh must configure the updater"
 grep -Fx -- "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld --ld-path=$t/cl/bin/ld64.lld" "$A" >/dev/null \
