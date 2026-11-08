@@ -37,7 +37,8 @@ pthread_override removal) live as a `fixups` step in build/build.sh, not here.
 - 0012-linux-host-toolset.patch: lets a cross build run on a Linux host. With `host_os=linux`
   (`build.sh host-env` sets it through GYP_DEFINES) gyp's host toolset gets libuv's and V8's Linux
   platform sources instead of Darwin's, and gyp stops asking for Xcode or the Command Line Tools on a
-  host that has neither, and Node's configure picks V8's wasm SIMD256 revectorizer by the target OS rather
-  than the build host's (it was on for any non-macOS host). V8's heap confines its mmap hints to one 32-bit
+  host that has neither, and Node's configure picks V8's wasm SIMD256 revectorizer, the shared-library
+  suffix and whether to record xcode_version by the target OS rather than the build host's (process.config
+  carries the last two). V8's heap confines its mmap hints to one 32-bit
   region on Darwin, and mksnapshot writes addresses from that region into the startup snapshot, so a Linux
   host confines them too when the target is macOS. The target toolset, and any Mac host, are unchanged.

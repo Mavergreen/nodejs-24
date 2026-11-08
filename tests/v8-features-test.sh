@@ -1,7 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
-# The V8 a configured tree builds has the features a native 10.9 build has, whatever the build host: Node's
-# configure picks wasm SIMD256 revectorization by the HOST's platform (on for any non-macOS host), which
+# A configured tree describes the macOS target, whatever the build host: its config.gypi (shipped as
+# process.config) names a .dylib shlib_suffix and an xcode_version, and the V8 it builds has the features a
+# native 10.9 build has. Node's configure picks wasm SIMD256 revectorization by the HOST's platform (on for any non-macOS host), which
 # patches/0012-linux-host-toolset.patch makes the target's; and mksnapshot picks some builtins' code by the host
 # compiler's __SSE3__, which a Mac host defines and a Linux host-cc must too; and V8's heap must confine its
 # mmap hints for a macOS target on any host, since mksnapshot writes those addresses into the snapshot.
@@ -12,6 +13,9 @@ SRC="$(sh "$root/build/paths.sh" | sed -n 's/^SRC=//p')"
 if grep -Eq "[\"']v8_enable_wasm_simd256_revec[\"']: 1" "$SRC/config.gypi"; then
   echo "FAIL: $SRC/config.gypi enables V8's wasm SIMD256 revectorizer, which a 10.9 build of this node does not have"; exit 1
 fi
+grep -Eq "[\"']shlib_suffix[\"']: [\"'][0-9]+\.dylib[\"']" "$SRC/config.gypi" \
+  && grep -Eq "[\"']xcode_version[\"']:" "$SRC/config.gypi" \
+  || { echo "FAIL: $SRC/config.gypi describes the build host (shlib_suffix, xcode_version), not the macOS target; node carries it as process.config"; exit 1; }
 grep -Eq "[\"']target_arch[\"']: [\"']x64[\"']" "$SRC/config.gypi" \
   || { echo "FAIL: $SRC/config.gypi does not describe an x64 target"; exit 1; }
 grep -q '^#if V8_OS_DARWIN || defined(V8_TARGET_OS_MACOS)$' "$SRC/deps/v8/src/heap/heap.h" \
